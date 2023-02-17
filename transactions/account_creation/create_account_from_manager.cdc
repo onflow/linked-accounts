@@ -24,9 +24,13 @@ transaction(
             // Create and save the ChildAccountManager resource
             signer.save(<-ChildAccount.createChildAccountManager(), to: ChildAccount.ChildAccountManagerStoragePath)
         }
-        if !signer.getCapability<&{ChildAccount.ChildAccountManagerViewer}>(ChildAccount.ChildAccountManagerPublicPath).check() {
+        if !signer.getCapability<
+                &ChildAccount.ChildAccountManager{ChildAccount.ChildAccountManagerViewer}
+            >(ChildAccount.ChildAccountManagerPublicPath).check() {
+            // Unlink & link
+            signer.unlink(ChildAccount.ChildAccountManagerPublicPath)
             signer.link<
-                &{ChildAccount.ChildAccountManagerViewer}
+                &ChildAccount.ChildAccountManager{ChildAccount.ChildAccountManagerViewer}
             >(
                 ChildAccount.ChildAccountManagerPublicPath,
                 target: ChildAccount.ChildAccountManagerStoragePath
@@ -38,9 +42,8 @@ transaction(
         // Get a reference to the signer's ChildAccountManager
         let managerRef = signer.borrow<
                 &ChildAccount.ChildAccountManager
-            >(
-                from: ChildAccount.ChildAccountManagerStoragePath
-            ) ?? panic(
+            >(from: ChildAccount.ChildAccountManagerStoragePath)
+            ?? panic(
                 "No ChildAccountManager in signer's account at "
                 .concat(ChildAccount.ChildAccountManagerStoragePath.toString())
             )
