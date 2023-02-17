@@ -1,22 +1,9 @@
-# Repository template
-A template enabled repository, including all necesary files to open source.
-(create an issue with the following content if you want to track the repo configuration)
+# Linked Accounts
 
-## Repository settings and configuration
-- [ ]  Repository info
-    - [ ]  Add repo description
-    - [ ]  Update website to https://onflow.org
-    - [ ]  Add relevant repository topics (i.e. `blockchain` `onflow`, etc)
-- [ ]  Define merge workflow (create new branch protection rule)
-    - [ ]  `main` branch rule:
-        - [ ]  **Require pull request reviews before merging (2 approving reviews)**
-            - [ ]  **Require review from Code Owners**
-        - [ ]  **Require status checks to pass before merging**
-            - [ ]  **Require branches to be up to date before merging**
-        - [ ]  **Require linear history**
-        - [ ]   **Restrict who can push to matching branches**
-            - [ ]  Choose `onflow/flow` team
+This repository contains the `ChildAccount` contracts along with supporting scripts & transactions related to linking accounts in support of a [walletless onboarding](https://flow.com/post/flow-blockchain-mainstream-adoption-easy-onboarding-wallets) and the [hybrid custody account model](https://forum.onflow.org/t/hybrid-custody/4016/15).
 
-- [ ]  Add necessary team members, adjust access levels
-    - [ ]  `onflow/flow-admin` ⇒ Admin access
-    - [ ]  `onflow/flow-engineering ` ⇒ Write access
+### Contract Addresses
+**Testnet**: 0x1b655847a90e644a
+
+## Linked accounts In Practice
+Check out the [@onflow/sc-eng-gaming repo](https://github.com/onflow/sc-eng-gaming/blob/sisyphusSmiling/child-account-auth-acct-cap/contracts/RockPaperScissorsGame.cdc) to see how the `ChildAccount` Cadence suite works in the context of a Rock, Paper, Scissors game.
