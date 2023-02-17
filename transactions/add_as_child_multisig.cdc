@@ -1,22 +1,17 @@
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
 import ChildAccount from "../contracts/ChildAccount.cdc"
 
-// TODO: Add check on existing child of parent
-/// Adds the labeled child account as a Child Account in the parent accounts'
-/// ChildAccountManager resource. The parent maintains an AuthAccount Capability
-/// on the child's account. Requires transaction be signed by both parties so that
-/// the GamePlayer resource can be moved from the child's to the parent's account,
-/// linked and a DelegatedGamePlayer Capability granted to the child through the
-/// parent's ChildAccountManager to the child's ChildAccountTag.
-///
-/// NOTE: Assumes that the child account has a GamePlayer & ChildAccountTag configured
-/// and the parent account does not have a GamePlayer stored 
+/// Links thie signing accounts as labeled, with the child's AuthAccount Capability
+/// maintained in the parent's ChildAccountManager resource.
+/// Assumes that the child account has ChildAccountTag configured, as would be
+/// the case if created by ChildAccountCreator.
 ///
 transaction {
 
     let authAccountCap: Capability<&AuthAccount>
     let managerRef: &ChildAccount.ChildAccountManager
     let info: ChildAccount.ChildAccountInfo
+    let childAccountAddress: Address
 
     prepare(parent: AuthAccount, child: AuthAccount) {
         
@@ -28,23 +23,22 @@ transaction {
             parent.save(<-ChildAccount.createChildAccountManager(), to: ChildAccount.ChildAccountManagerStoragePath)
         }
         // Ensure ChildAccountManagerViewer is linked properly
-        if !parent.getCapability<&{ChildAccount.ChildAccountManagerViewer}>(ChildAccount.ChildAccountManagerPublicPath).check() {
-            parent.unlink(ChildAccount.ChildAccountManagerPublicPath)
+        if !parent.getCapability<
+                &ChildAccount.ChildAccountManager{ChildAccount.ChildAccountManagerViewer}
+            >(ChildAccount.ChildAccountManagerPublicPath).check() {
             // Link
+            parent.unlink(ChildAccount.ChildAccountManagerPublicPath)
             parent.link<
-                &{ChildAccount.ChildAccountManagerViewer}
+                &ChildAccount.ChildAccountManager{ChildAccount.ChildAccountManagerViewer}
             >(
                 ChildAccount.ChildAccountManagerPublicPath,
                 target: ChildAccount.ChildAccountManagerStoragePath
             )
         }
         // Get a reference to the ChildAccountManager resource
-        self.managerRef = parent
-            .borrow<
+        self.managerRef = parent.borrow<
                 &ChildAccount.ChildAccountManager
-            >(
-                from: ChildAccount.ChildAccountManagerStoragePath
-            )!
+            >(from: ChildAccount.ChildAccountManagerStoragePath)!
 
         /* --- Link the child account's AuthAccount Capability & assign --- */
         //
@@ -62,79 +56,10 @@ transaction {
         // Get the child account's Metadata which should have been configured on creation by ChildAccountCreator
         let childTagRef = child.borrow<
                 &ChildAccount.ChildAccountTag
-            >(
-                from: ChildAccount.ChildAccountTagStoragePath
-            ) ?? panic("Could not borrow reference to ChildAccountTag in account ".concat(child.address.toString()))
+            >(from: ChildAccount.ChildAccountTagStoragePath)
+            ?? panic("Could not borrow reference to ChildAccountTag in account ".concat(child.address.toString()))
         self.info = childTagRef.info
-        
-        /** --- Setup parent's GamePieceNFT.Collection --- */
-        //
-        // Set up GamePieceNFT.Collection if it doesn't exist
-        if parent.borrow<&GamePieceNFT.Collection>(from: GamePieceNFT.CollectionStoragePath) == nil {
-            // Create a new empty collection
-            let collection <- GamePieceNFT.createEmptyCollection()
-            // save it to the account
-            parent.save(<-collection, to: GamePieceNFT.CollectionStoragePath)
-        }
-        // Check for public capabilities
-        if !parent.getCapability<
-                &GamePieceNFT.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, GamePieceNFT.GamePieceNFTCollectionPublic, MetadataViews.ResolverCollection}
-            >(
-                GamePieceNFT.CollectionPublicPath
-            ).check() {
-            // create a public capability for the collection
-            parent.unlink(GamePieceNFT.CollectionPublicPath)
-            parent.link<
-                &GamePieceNFT.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, GamePieceNFT.GamePieceNFTCollectionPublic, MetadataViews.ResolverCollection}
-            >(
-                GamePieceNFT.CollectionPublicPath,
-                target: GamePieceNFT.CollectionStoragePath
-            )
-        }
-        // Check for private capabilities
-        if !parent.getCapability<&GamePieceNFT.Collection{NonFungibleToken.Provider}>(GamePieceNFT.ProviderPrivatePath).check() {
-            // Link the Provider Capability in private storage
-            parent.unlink(GamePieceNFT.ProviderPrivatePath)
-            parent.link<
-                &GamePieceNFT.Collection{NonFungibleToken.Provider}
-            >(
-                GamePieceNFT.ProviderPrivatePath,
-                target: GamePieceNFT.CollectionStoragePath
-            )
-        }
-
-        /* --- Configure parent's account with TicketToken.Vault --- */
-        //
-        if parent.borrow<&TicketToken.Vault>(from: TicketToken.VaultStoragePath) == nil {
-            // Create a new flowToken Vault and put it in storage
-            parent.save(<-TicketToken.createEmptyVault(), to: TicketToken.VaultStoragePath)
-        }
-
-        if !parent.getCapability<&TicketToken.Vault{FungibleToken.Receiver, FungibleToken.Balance}>(
-            TicketToken.ReceiverPublicPath
-        ).check() {
-            // Unlink any capability that may exist there
-            parent.unlink(TicketToken.ReceiverPublicPath)
-            // Create a public capability to the Vault that only exposes the deposit function
-            // & balance field through the Receiver & Balance interface
-            parent.link<&TicketToken.Vault{FungibleToken.Receiver, FungibleToken.Balance}>(
-                TicketToken.ReceiverPublicPath,
-                target: TicketToken.VaultStoragePath
-            )
-        }
-
-        if !parent.getCapability<&TicketToken.Vault{FungibleToken.Provider}>(
-            TicketToken.ProviderPrivatePath
-        ).check() {
-            // Unlink any capability that may exist there
-            parent.unlink(TicketToken.ProviderPrivatePath)
-            // Create a private capability to the Vault that only exposes the withdraw function
-            // through the Provider interface
-            parent.link<&TicketToken.Vault{FungibleToken.Provider}>(
-                TicketToken.ProviderPrivatePath,
-                target: TicketToken.VaultStoragePath
-            )
-        }
+        self.childAccountAddress = child.address
     }
 
     execute {
@@ -144,5 +69,10 @@ transaction {
             // Add the child account
             self.managerRef.addAsChildAccount(childAccountCap: self.authAccountCap, childAccountInfo: self.info)
         }
+    }
+
+    post {
+        self.managerRef.getChildAccountAddresses().contains(childAccountAddress):
+            "Problem linking accounts!"
     }
 }
