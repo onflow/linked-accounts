@@ -3,14 +3,14 @@ import FlowToken from "./utility/FlowToken.cdc"
 import MetadataViews from "./utility/MetadataViews.cdc"
 
 /// This contract is an attempt at establishing and representing a
-/// parent-child (AKA puppet or proxy) account hierarchy between accounts.
-/// The ChildAccountManager allows a parent account to create child accounts, and
-/// maintains a mapping of child accounts as they are created.AccountKey
+/// parent-child hierarchy between linked accounts.
 ///
-/// An account is deemed a child of a parent if the parent has 1000.0 weight
-/// key access to the child account. This means that both the parent's private key
-/// and the pairwise private key of the public key provided on creation have access
-/// to the accounts created via that ChildAccountManager resource.
+/// The ChildAccountManager allows a parent account to create child accounts, and
+/// maintains a mapping of child accounts as they are created. An account is deemed 
+/// a child of a parent if the parent maintains delegated access on the child
+/// account by way of AuthAccount Capability stored in a ChildAccountManager. By the
+/// constructs defined in this contract, a child account can be identified by a stored
+/// ChildAccountTag.
 ///
 /// While one generally would not want to share account access with other parties,
 /// this can be helpful in a low-stakes environment where the parent account's owner
@@ -19,24 +19,21 @@ import MetadataViews from "./utility/MetadataViews.cdc"
 /// let a game client submit transactions on their behalf without signing over the whole
 /// of their primary account, and do so in a way that didn't require custom a Capability.
 ///
-/// With that said, users should bare in mind that any assets in a child account incur
-/// obvious custody risk, and that it's generally an anti-patter to pass around AuthAccounts.
+/// With that said, users should bear in mind that any assets in a child account incur
+/// obvious custodial risk, and that it's generally an anti-pattern to pass around AuthAccounts.
 /// In this case, a user owns both accounts so they are technically passing an AuthAccount
 /// to themselves in calls to resources that reside in their own account, so it was deemed
-/// a valid application of the pattern.
+/// a valid application of the pattern. That said, a user should be cognizant of the party
+/// with key access on the child account as this pattern requires some degree of trust in the
+/// custodying party.
 ///
 pub contract ChildAccount {
 
     // TODO:
-    // - Events
-    // - isCurrentlyActive() to check if originatingPublicKey is revoked on resource.owner
+    // - Events based on FLIP discussion
 
-    // Establish metadataview when child account is created
-    // - dapp name/publisher name
-    // - publisher logo
-    // - etc
-    // Offer quick utility to bulk move assets between child
-    /// Standard canonical path for AuthAccountCapability
+    /* Standard paths */
+    //
     pub let AuthAccountCapabilityPath: CapabilityPath
     pub let ChildAccountManagerStoragePath: StoragePath
     pub let ChildAccountManagerPublicPath: PublicPath
@@ -48,7 +45,6 @@ pub contract ChildAccount {
     pub let ChildAccountCreatorPublicPath: PublicPath
 
 
-    //check
     /// This should be rather a view (I'm using it as a view)
     ///
     /// Identifies information that could be used to determine the off-chain
@@ -78,9 +74,7 @@ pub contract ChildAccount {
 
 
     /** --- Child Account Tag--- */
-    ///
-    ///
-    ///
+    //
     pub resource interface ChildAccountTagPublic {
         pub var parentAddress: Address?
         pub let address: Address
