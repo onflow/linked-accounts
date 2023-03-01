@@ -1,4 +1,4 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
 
 /// Sets up a ChildAccountCreator in signer's account to enable creation of
 /// accounts & querying created addresses from the originating public key

@@ -1,5 +1,5 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
-import MetadataViews from "../contracts/utility/MetadataViews.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
+import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 
 /// Signing account claims a Capability to specified Address's AuthAccount
 /// and adds it as a child account in its ChildAccountManager, allowing it 

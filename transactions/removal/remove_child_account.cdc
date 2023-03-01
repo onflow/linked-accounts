@@ -1,4 +1,4 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
 
 /// This transaction removes access to a child account from the signer's
 /// ChildAccountManager. Note that the signer will no longer have access to
