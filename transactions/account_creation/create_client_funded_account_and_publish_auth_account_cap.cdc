@@ -1,5 +1,5 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
-import MetadataViews from "../contracts/utility/MetadataViews.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
+import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 
 /// This transaction creates an account from the given public key, using the
 /// ChildAccountCreator with the signer as the account's payer, additionally

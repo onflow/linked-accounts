@@ -1,5 +1,5 @@
-import MetadataViews from "../contracts/utility/MetadataViews.cdc"
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
 
 /// Links thie signing accounts as labeled, with the child's AuthAccount Capability
 /// maintained in the parent's ChildAccountManager resource.

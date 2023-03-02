@@ -1,4 +1,4 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 
 /// This transaction creates an account using the signer's ChildAccountCreator,

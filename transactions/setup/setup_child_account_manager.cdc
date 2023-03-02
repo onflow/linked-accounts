@@ -1,4 +1,4 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import ChildAccount from "../../contracts/ChildAccount.cdc"
 
 /// Sets up a ChildAccountManager in signer's account to enable management
 /// of linked accounts via AuthAccount Capabilities
