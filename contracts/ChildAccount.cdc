@@ -460,7 +460,7 @@ pub contract ChildAccount {
             if childAccountRef.borrow<&ChildAccountTag>(from: ChildAccount.ChildAccountTagStoragePath) == nil {
                 // Create ChildAccountTag
                 let childTag <-create ChildAccountTag(
-                        parentAddress: self.owner!.address,
+                        parentAddress: nil,
                         address: childAccountRef.address,
                         info: childAccountInfo
                     )
