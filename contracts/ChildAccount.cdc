@@ -88,10 +88,15 @@ pub contract ChildAccount {
     /// its parent's ChildAccountManager
     ///
     pub resource ChildAccountTag : ChildAccountTagPublic {
+        /// Pointer to this account's parent account
         pub var parentAddress: Address?
+        /// The address of the residing account
         pub let address: Address
+        /// Metadata about the purpose of this child account
         pub let info: ChildAccountInfo
+        /// Capabilities that have been granted by the parent account
         access(contract) let grantedCapabilities: {Type: Capability}
+        /// Flag denoting whether link to parent is still active
         access(contract) var isActive: Bool
 
         init(
@@ -107,16 +112,35 @@ pub contract ChildAccount {
         }
 
         /** --- ChildAccountTagPublic --- */
+        //
+        /// Returns the types of Capabilities this Tag has been granted
+        ///
+        /// @return An array of the Types of Capabilities this resource has access to
+        /// in its grantedCapabilities mapping
+        ///
         pub fun getGrantedCapabilityTypes(): [Type] {
             return self.grantedCapabilities.keys
         }
         
+        /// Returns whether the link between this tag and its associated ChildAccountManager
+        /// is still active - in practice whether the linked ChildAccountManager has removed
+        /// this tag's Capability
         pub fun isCurrentlyActive(): Bool {
             return self.isActive
         }
 
         /** --- ChildAccountTag --- */
-
+        //
+        /// Retrieves a granted Capability as a reference or nil if it does not exist. This
+        /// serves as a stand-in for Capability auditing & easy revocation until Capability
+        /// Controllers make their way to Cadence, enabling a parent account to issue, audit
+        /// and easily revoke Capabilities to child accounts.
+        /// 
+        /// @param type: The Type of Capability being requested
+        ///
+        /// @return A reference to the Capability or nil if a Capability of given Type is not
+        /// available
+        ///
         pub fun getGrantedCapabilityAsRef(_ type: Type): &Capability? {
             pre {
                 self.isActive: "ChildAccountTag has been de-permissioned by parent!"
@@ -124,6 +148,11 @@ pub contract ChildAccount {
             return &self.grantedCapabilities[type] as &Capability?
         }
 
+        /// Assigns the parent variable of this ChildAccountTag. Accessible within ChildAccountManager
+        /// when an account with existing ChildAccountTag is being assigned a parent account.
+        ///
+        /// @param address: The address of the parent account
+        ///
         access(contract) fun assignParent(address: Address) {
             pre {
                 self.parentAddress == nil:
@@ -132,6 +161,10 @@ pub contract ChildAccount {
             self.parentAddress = address
         }
 
+        /// Inserts the given Capability into this Tag's grantedCapabilities mapping
+        ///
+        /// @param cap: The Capability being granted
+        ///
         access(contract) fun grantCapability(_ cap: Capability) {
             pre {
                 !self.grantedCapabilities.containsKey(cap.getType()):
@@ -140,10 +173,19 @@ pub contract ChildAccount {
             self.grantedCapabilities.insert(key: cap.getType(), cap)
         }
 
+        /// Removes the Capability of given Type from this Tag's grantedCapabilities
+        /// mapping
+        ///
+        /// @param type: The Type of Capability to be removed
+        ///
+        /// @return the removed Capability or nil if it did not exist
+        ///
         access(contract) fun revokeCapability(_ type: Type): Capability? {
             return self.grantedCapabilities.remove(key: type)
         }
 
+        /// Sets the isActive Bool flag to false
+        ///
         access(contract) fun setInactive() {
             self.isActive = false
         }
