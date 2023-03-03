@@ -29,8 +29,13 @@ import MetadataViews from "./utility/MetadataViews.cdc"
 ///
 pub contract ChildAccount {
 
-    // TODO:
-    // - Events based on FLIP discussion
+    pub event AccountAddedAsChild(parent: Address, child: Address)
+    pub event ChildAccountCreatedFromManager(parent: Address, child: Address)
+    pub event AccountCreatedFromCreator(creator: Address?, newAccount: Address)
+    pub event ChildAccountGrantedCapability(parent: Address, child: Address, capabilityType: Type)
+    pub event ChildAccountRemoved(parent: Address, child: Address)
+    pub event ChildAccountManagerCreated()
+    pub event ChildAccountCreatorCreated()
 
     /* Standard paths */
     //
@@ -125,6 +130,7 @@ pub contract ChildAccount {
         /// Returns whether the link between this tag and its associated ChildAccountManager
         /// is still active - in practice whether the linked ChildAccountManager has removed
         /// this tag's Capability
+        ///
         pub fun isCurrentlyActive(): Bool {
             return self.isActive
         }
@@ -191,11 +197,12 @@ pub contract ChildAccount {
         }
     }
 
-    /// Wrapper for the child's info and authacct and tag capabilities
+    /// Wrapper for the child's metadata, AuthAccount, and ChildAccountTag Capabilities
     ///
     pub resource ChildAccountController: MetadataViews.Resolver {
-        
+        /// The AuthAccount Capability for the child account this controller represents
         access(self) let authAccountCapability: Capability<&AuthAccount>
+        /// Capability for the relevant ChildAccountTag
         access(self) var childAccountTagCapability: Capability<&ChildAccountTag>
 
         init(
@@ -250,17 +257,21 @@ pub contract ChildAccount {
             return self.authAccountCapability.borrow()!
         }
 
+        /// Returns a reference to the ChildAccountTag
+        ///
         pub fun getChildTagRef(): &ChildAccountTag {
             return self.childAccountTagCapability.borrow()!
         }
 
+        /// Returns a reference to the ChildAccountTag as ChildAccountTagPublic
+        ///
         pub fun getTagPublicRef(): &{ChildAccountTagPublic} {
             return self.childAccountTagCapability.borrow()!
         }
     }
 
     /* --- ChildAccountCreator --- */
-
+    //
     pub resource interface ChildAccountCreatorPublic {
         pub fun getAddressFromPublicKey (publicKey: String): Address?
     }
@@ -334,13 +345,13 @@ pub contract ChildAccount {
             )
 
             self.createdChildren.insert(key:childAccountInfo.originatingPublicKey, newAccount.address)
-
+            emit AccountCreatedFromCreator(creator: self.owner?.address, newAccount: newAccount.address)
             return newAccount
         }
     }
 
     /** --- ChildAccountManager --- */
-
+    //
     /// Interface that allows one to view information about the owning account's
     /// child accounts including the addresses for all child accounts and information
     /// about specific child accounts by Address
@@ -364,7 +375,7 @@ pub contract ChildAccount {
         }
 
         /** --- ChildAccountManagerViewer --- */
-
+        //
         /// Returns an array of all child account addresses
         ///
         pub fun getChildAccountAddresses(): [Address] {
@@ -382,7 +393,7 @@ pub contract ChildAccount {
         }
 
         /** --- ChildAccountManager --- */
-
+        //
         /// Allows the ChildAccountManager to retrieve a reference to the ChildAccountController
         /// for a specified child account address
         ///
@@ -394,6 +405,13 @@ pub contract ChildAccount {
             return &self.childAccounts[address] as &ChildAccountController?
         }
 
+        /// Returns a reference to the specified child account's AuthAccount
+        ///
+        /// @param address: The address of the relevant child account
+        ///
+        /// @return the child account's AuthAccount as ephemeral reference or nil if the
+        /// address is not of a child account
+        ///
         pub fun getChildAccountRef(address: Address): &AuthAccount? {
             if let controllerRef = self.getChildAccountControllerRef(address: address) {
                 return controllerRef.getAuthAcctRef()
@@ -401,6 +419,13 @@ pub contract ChildAccount {
             return nil
         }
 
+        /// Returns a reference to the specified child account's ChildAccountTag
+        ///
+        /// @param address: The address of the relevant child account
+        ///
+        /// @return the child account's ChildAccountTag as ephemeral reference or nil if the
+        /// address is not of a child account
+        ///
         pub fun getChildAccountTagRef(address: Address): &ChildAccountTag? {
             if let controllerRef = self.getChildAccountControllerRef(address: address) {
                 return controllerRef.getChildTagRef()
@@ -411,6 +436,15 @@ pub contract ChildAccount {
         /// Creates a new account, funding with the signer account, adding the public key
         /// contained in the ChildAccountInfo, and linking with this manager's owning
 		/// account.
+        ///
+        /// @param signer: The funding AuthAccount paying for new account creation
+        /// @param initialFundingAmount: Additional amount to transfer from signer to new account
+        /// @param childAccountInfo: Metadata about the purpose of the new linked accoun
+        /// @param authAccountCapPath: The path at which to link the new account's AuthAccount Capability
+        ///
+        /// @return the AuthAccount of the new account, enabling further configuration of the new account in
+        /// the calling transaction
+        ///
         pub fun createChildAccount(
             signer: AuthAccount,
             initialFundingAmount: UFix64,
@@ -481,12 +515,15 @@ pub contract ChildAccount {
                 )
             // Add the controller to this manager
             self.childAccounts[newAccount.address] <-! controller
-
+            emit ChildAccountCreatedFromManager(parent: self.owner!.address, child: newAccount.address)
             return newAccount
         }
 
         /// Add an existing account as a child account to this manager resource. This would be done in
         /// a multisig transaction which should be possible if the parent account controls both
+        ///
+        /// @param childAccountCap: AuthAccount Capability for the account to be added as a child account
+        /// @param childAccountInfo: Metadata struct containing relevant data about the account being linked
         ///
         pub fun addAsChildAccount(childAccountCap: Capability<&AuthAccount>, childAccountInfo: ChildAccountInfo) {
             pre {
@@ -497,13 +534,14 @@ pub contract ChildAccount {
             }
             // Get a &AuthAccount reference from the the given AuthAccount Capability
             let childAccountRef: &AuthAccount = childAccountCap.borrow()!
+            let childAddress = childAccountRef.address
 
             // Check for ChildAccountTag - create, save & link if it doesn't exist
             if childAccountRef.borrow<&ChildAccountTag>(from: ChildAccount.ChildAccountTagStoragePath) == nil {
                 // Create ChildAccountTag
                 let childTag <-create ChildAccountTag(
                         parentAddress: nil,
-                        address: childAccountRef.address,
+                        address: childAddress,
                         info: childAccountInfo
                     )
                 // Save the ChildAccountTag in the child account's storage & link
@@ -540,7 +578,9 @@ pub contract ChildAccount {
                     authAccountCap: childAccountCap,
                     childAccountTagCap: tagCap
                 )
-            self.childAccounts[childAccountRef.address] <-! controller
+            self.childAccounts[childAddress] <-! controller
+
+            emit AccountAddedAsChild(parent: self.owner!.address, child: childAddress)
         }
 
         /// Adds the given Capability to the ChildAccountTag at the provided Address
@@ -557,7 +597,9 @@ pub contract ChildAccount {
             let tagRef = self.getChildAccountTagRef(
                     address: to
                 ) ?? panic("Problem with ChildAccountTag Capability for given address: ".concat(to.toString()))
+            let capType: Type = cap.getType()
             tagRef.grantCapability(cap)
+            emit ChildAccountGrantedCapability(parent: self.owner!.address, child: to, capabilityType: capType)
         }
 
         /// Removes the capability of the given type from the ChildAccountTag with the given Address
@@ -593,6 +635,7 @@ pub contract ChildAccount {
                 for capType in tagRef.getGrantedCapabilityTypes() {
                     tagRef.revokeCapability(capType)
                 }
+                emit ChildAccountRemoved(parent: self.owner!.address, child: withAddress)
                 destroy controller
             }
         }
@@ -632,11 +675,17 @@ pub contract ChildAccount {
         return false
     }
 
+    /// Returns a new ChildAccountManager
+    ///
     pub fun createChildAccountManager(): @ChildAccountManager {
+        emit ChildAccountManagerCreated()
         return <-create ChildAccountManager()
     }
 
+    /// Returns a new ChildAccountCreator
+    ///
     pub fun createChildAccountCreator(): @ChildAccountCreator {
+        emit ChildAccountCreatorCreated()
         return <-create ChildAccountCreator()
     }
 
