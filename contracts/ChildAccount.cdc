@@ -30,9 +30,10 @@ import MetadataViews from "./utility/MetadataViews.cdc"
 pub contract ChildAccount {
 
     pub event AccountAddedAsChild(parent: Address, child: Address)
-    pub event ChildAccountCreatedFromManager(parent: Address, child: Address)
-    pub event AccountCreatedFromCreator(creator: Address?, newAccount: Address)
+    pub event ChildAccountCreatedFromManager(parent: Address, child: Address, originatingPublicKey: String)
+    pub event AccountCreatedFromCreator(creator: Address?, newAccount: Address, originatingPublicKey: String)
     pub event ChildAccountGrantedCapability(parent: Address, child: Address, capabilityType: Type)
+    pub event ParentAccountRevokedCapability(parent: Address, child: Address, capabilityType: Type)
     pub event ChildAccountRemoved(parent: Address, child: Address)
     pub event ChildAccountManagerCreated()
     pub event ChildAccountCreatorCreated()
@@ -345,7 +346,7 @@ pub contract ChildAccount {
             )
 
             self.createdChildren.insert(key:childAccountInfo.originatingPublicKey, newAccount.address)
-            emit AccountCreatedFromCreator(creator: self.owner?.address, newAccount: newAccount.address)
+            emit AccountCreatedFromCreator(creator: self.owner?.address, newAccount: newAccount.address, originatingPublicKey: childAccountInfo.originatingPublicKey)
             return newAccount
         }
     }
@@ -515,7 +516,7 @@ pub contract ChildAccount {
                 )
             // Add the controller to this manager
             self.childAccounts[newAccount.address] <-! controller
-            emit ChildAccountCreatedFromManager(parent: self.owner!.address, child: newAccount.address)
+            emit ChildAccountCreatedFromManager(parent: self.owner!.address, child: newAccount.address, originatingPublicKey: childAccountInfo.originatingPublicKey)
             return newAccount
         }
 
@@ -618,6 +619,7 @@ pub contract ChildAccount {
                 ) ?? panic("Problem with ChildAccountTag Capability for given address: ".concat(from.toString()))
             tagRef.revokeCapability(type)
                 ?? panic("Capability not properly revoked")
+            emit ParentAccountRevokedCapability(parent: self.owner!.address, child: from, capabilityType: type)
         }
 
         /// Remove ChildAccountTag, returning its Capability if it exists. Note, doing so
@@ -703,4 +705,3 @@ pub contract ChildAccount {
         self.ChildAccountCreatorPublicPath = /public/ChildAccountCreator
     }
 }
- 
