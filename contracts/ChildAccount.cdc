@@ -96,7 +96,7 @@ pub contract ChildAccount {
     pub resource ChildAccountTag : ChildAccountTagPublic {
         /// Pointer to this account's parent account
         pub var parentAddress: Address?
-        /// The address of the residing account
+        /// The address of the account where the `ChildAccountTag` resource resides
         pub let address: Address
         /// Metadata about the purpose of this child account
         pub let info: ChildAccountInfo
