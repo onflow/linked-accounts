@@ -138,10 +138,11 @@ pub contract ChildAccount {
 
         /** --- ChildAccountTag --- */
         //
-        /// Retrieves a granted Capability as a reference or nil if it does not exist. This
-        /// serves as a stand-in for Capability auditing & easy revocation until Capability
-        /// Controllers make their way to Cadence, enabling a parent account to issue, audit
-        /// and easily revoke Capabilities to child accounts.
+        /// Retrieves a granted Capability as a reference or nil if it does not exist. 
+        /// 
+        //  **NB**: This is a temporary solution for Capability auditing & easy revocation 
+        /// until CapabilityControllers make their way to Cadence, enabling a parent account 
+        /// to issue, audit and easily revoke Capabilities to child accounts.
         /// 
         /// @param type: The Type of Capability being requested
         ///
