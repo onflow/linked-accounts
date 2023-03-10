@@ -1,62 +1,73 @@
+<<<<<<< HEAD
 #allowAccountLinking
 
 import ChildAccount from "../../contracts/ChildAccount.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
+=======
+import FungibleToken from "../../contracts/utility/FungibleToken.cdc"
+import FlowToken from "../../contracts/utility/FlowToken.cdc"
+>>>>>>> a77960a (Refactor walletless onbaording txn for acct creation in txn)
 
-/// This transaction creates an account using the signer's ChildAccountCreator,
-/// funding creation via the signing account and adding the provided public key.
-/// A ChildAccountTag resource is saved in the new account, identifying it as an
-/// account created under this construction. This resource also holds metadata
-/// related to the purpose of this account.
-/// Additionally, the ChildAccountCreator maintains a mapping of addresses created
-/// by it indexed on the originatingpublic key. This enables dapps to lookup the
-/// address for which they hold a public key. 
+/// This transaction creates an account, funding creation via the signer and
+/// adding the provided public key. You'll notice this transaction is pretty
+/// much your standar account creation. The magic for you will be how you custody
+/// the key for this account (locally, KMS, wallet service, etc.) in a manner that
+/// allows your dapp to mediate on-chain interactions on behalf of your user. Note
+/// that custodial patterns have regulatory implications you'll want to consult a 
+/// legal professional about.
+///
+/// In your dapp's walletless transaction, you'll likely also want to configure
+/// the new account with resources & capabilities relevant for your use case after
+/// account creation & optional funding.
 ///
 transaction(
     pubKey: String,
-    fundingAmt: UFix64,
-    childAccountName: String,
-    childAccountDescription: String,
-    clientIconURL: String,
-    clientExternalURL: String
+    initialFundingAmt: UFix64,
   ) {
 	
 	prepare(signer: AuthAccount) {
-		// Save a ChildAccountCreator if none exists
-		if signer.borrow<&ChildAccount.ChildAccountCreator>(from: ChildAccount.ChildAccountCreatorStoragePath) == nil {
-			signer.save(<-ChildAccount.createChildAccountCreator(), to: ChildAccount.ChildAccountCreatorStoragePath)
+
+		/* Account Creation */
+		//
+		// Create the child account, funding via the signer
+		let newAccount = AuthAccount(payer: signer)
+		// Create a public key for the proxy account from string value in the provided arg
+		// NOTE: Specify the signature algo best for your use case
+		let key = PublicKey(
+			publicKey: pubKey.decodeHex(),
+			signatureAlgorithm: SignatureAlgorithm.ECDSA_P256
+		)
+		// Add the key to the new account
+		// NOTE: Specify the hash algo & weight best for your use case
+		newAccount.keys.add(
+			publicKey: key,
+			hashAlgorithm: HashAlgorithm.SHA3_256,
+			weight: 1000.0
+		)
+
+		/* (Optional) Additional Account Funding */
+		//
+		// Fund the new account if specified
+		if initialFundingAmt > 0.0 {
+			// Get a vault to fund the new account
+			let fundingProvider = signer.borrow<&FlowToken.Vault{FungibleToken.Provider}>(
+					from: /storage/flowTokenVault
+				)!
+			// Fund the new account with the initialFundingAmount specified
+			newAccount.getCapability<&FlowToken.Vault{FungibleToken.Receiver}>(
+				/public/flowTokenReceiver
+				).borrow()!
+				.deposit(
+					from: <-fundingProvider.withdraw(
+						amount: initialFundingAmt
+					)
+				)
 		}
-		// Link the public Capability so signer can query address on public key
-		if !signer.getCapability<&{ChildAccount.ChildAccountCreatorPublic}>(ChildAccount.ChildAccountCreatorPublicPath).check() {
-			signer.unlink(ChildAccount.ChildAccountCreatorPublicPath)
-			signer.link<
-				&{ChildAccount.ChildAccountCreatorPublic}
-			>(
-				ChildAccount.ChildAccountCreatorPublicPath,
-				target: ChildAccount.ChildAccountCreatorStoragePath
-			)
-		}
-		// Get a reference to the ChildAccountCreator
-		let creatorRef = signer.borrow<&ChildAccount.ChildAccountCreator>(
-				from: ChildAccount.ChildAccountCreatorStoragePath
-			) ?? panic("Problem getting a ChildAccountCreator reference!")
-		// Construct the ChildAccountInfo metadata struct
-		let info = ChildAccount.ChildAccountInfo(
-			name: childAccountName,
-			description: childAccountDescription,
-			clientIconURL: MetadataViews.HTTPFile(url: clientIconURL),
-			clienExternalURL: MetadataViews.ExternalURL(clientExternalURL),
-			originatingPublicKey: pubKey
-			)
-			// Create the account, passing signer AuthAccount to fund account creation
-			// and add initialFundingAmount in Flow if desired
-		let newAccount: AuthAccount = creatorRef.createChildAccount(
-			signer: signer,
-			initialFundingAmount: fundingAmt,
-			childAccountInfo: info
-			)
-			// At this point, the newAccount can further be configured as suitable for
-			// use in your dapp (e.g. Setup a Collection, Mint NFT, Configure Vault, etc.)
-			// ...
+
+		/* Continue with use case specific setup */
+		//
+		// At this point, the newAccount can further be configured as suitable for
+		// use in your dapp (e.g. Setup a Collection, Mint NFT, Configure Vault, etc.)
+		// ...
 	}
 }
