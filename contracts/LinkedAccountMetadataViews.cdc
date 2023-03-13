@@ -11,6 +11,7 @@ pub contract LinkedAccountMetadataViews {
     pub struct interface AccountMetadata {
         pub let name: String
         pub let description: String
+        pub let creationTimestamp: UFix64
         pub let icon: AnyStruct{MetadataViews.File}
         pub let externalURL: MetadataViews.ExternalURL
     }
@@ -20,6 +21,7 @@ pub contract LinkedAccountMetadataViews {
     pub struct AccountInfo : AccountMetadata {
         pub let name: String
         pub let description: String
+        pub let creationTimestamp: UFix64
         pub let icon: AnyStruct{MetadataViews.File}
         pub let externalURL: MetadataViews.ExternalURL
         
@@ -31,6 +33,7 @@ pub contract LinkedAccountMetadataViews {
         ) {
             self.name = name
             self.description = description
+            self.creationTimestamp = getCurrentBlock().timestamp
             self.icon = icon
             self.externalURL = externalURL
         }
