@@ -1,3 +1,5 @@
+#allowAccountLinking
+
 import ChildAccount from "../../contracts/ChildAccount.cdc"
 
 /// Signing account publishes a Capability to its AuthAccount for
