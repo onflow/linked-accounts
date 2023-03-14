@@ -1,3 +1,4 @@
+#allowAccountLinking
 import FungibleToken from "./utility/FungibleToken.cdc"
 import FlowToken from "./utility/FlowToken.cdc"
 import MetadataViews from "./utility/MetadataViews.cdc"

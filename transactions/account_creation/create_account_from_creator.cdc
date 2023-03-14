@@ -1,3 +1,5 @@
+#allowAccountLinking
+
 import ChildAccount from "../../contracts/ChildAccount.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 
