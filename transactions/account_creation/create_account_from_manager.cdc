@@ -15,7 +15,8 @@ transaction(
         childAccountName: String,
         childAccountDescription: String,
         clientIconURL: String,
-        clientExternalURL: String
+        clientExternalURL: String,
+        authAccountCapPath: String
     ) {
 
     prepare(signer: AuthAccount) {
@@ -62,11 +63,13 @@ transaction(
                 originatingPublicKey: pubKeyAsString
             )
         // Create the account
+        let path = PrivatePath(identifier: authAccountCapPath)
+            ?? panic("Problem creating PrivatePath to store AuthAccount Capability!")
         let newAccount = managerRef.createChildAccount(
             signer: signer,
             initialFundingAmount: fundingAmt,
             childAccountInfo: info,
-            authAccountCapPath: ChildAccount.AuthAccountCapabilityPath
+            authAccountCapPath: path
         )
     }
 }

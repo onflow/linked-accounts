@@ -42,11 +42,11 @@ transaction(
 			) ?? panic("Problem getting a ChildAccountCreator reference!")
 		// Construct the ChildAccountInfo metadata struct
 		let info = ChildAccount.ChildAccountInfo(
-			name: childAccountName,
-			description: childAccountDescription,
-			clientIconURL: MetadataViews.HTTPFile(url: clientIconURL),
-			clienExternalURL: MetadataViews.ExternalURL(clientExternalURL),
-			originatingPublicKey: pubKey
+				name: childAccountName,
+				description: childAccountDescription,
+				clientIconURL: MetadataViews.HTTPFile(url: clientIconURL),
+				clienExternalURL: MetadataViews.ExternalURL(clientExternalURL),
+				originatingPublicKey: pubKey
 			)
 			// Create the account, passing signer AuthAccount to fund account creation
 			// and add initialFundingAmount in Flow if desired

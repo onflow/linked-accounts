@@ -452,7 +452,7 @@ pub contract ChildAccount {
             signer: AuthAccount,
             initialFundingAmount: UFix64,
             childAccountInfo: ChildAccountInfo,
-            authAccountCapPath: CapabilityPath
+            authAccountCapPath: PrivatePath
         ): AuthAccount {
             
             // Create the child account
