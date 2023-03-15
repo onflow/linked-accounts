@@ -1,3 +1,13 @@
+/***************************************************************************
+
+    For more info on this contract & associated transactions & scripts, see:
+    https://github.com/onflow/linked-accounts
+    
+    To provide feedback, check FLIP #72
+    https://github.com/onflow/flips/pull/72
+
+****************************************************************************/
+
 import NonFungibleToken from "./utility/NonFungibleToken.cdc"
 import ViewResolver from "./utility/ViewResolver.cdc"
 import FungibleToken from "./utility/FungibleToken.cdc"
@@ -5,34 +15,37 @@ import FlowToken from "./utility/FlowToken.cdc"
 import MetadataViews from "./utility/MetadataViews.cdc"
 import LinkedAccountMetadataViews from "./LinkedAccountMetadataViews.cdc"
 
-/// This contract is an attempt at establishing and representing a
-/// parent-child hierarchy between linked accounts.
+/// This contract establishes a standard set of resources representing linked account associations, enabling
+/// querying of either end of account links as well as management of linked accounts, the Capabilities they're
+/// granted, as well as addition/removal of new/existing account delegations. By leveraging this contract, a new sort
+/// of custody is unlocked - Hybrid Custody - enabling the mainstream-friendly walletless onboarding UX we're so
+/// excited about on Flow.
 ///
-/// The AccountAdministrator allows a parent account to add child accounts, and
-/// maintains delegated access in a stored mapping. An account is deemed a child of a
+/// By leveraging existing metadata standards, builders can easily query a Collection's linked accounts, their
+/// relevant metadata, etc. With implementation of the NFT standard, Collection owners can easily transfer delegation
+/// they wish in a mental model that's familiar and easy to understand.
+///
+/// The Collection allows a main account to add linked accounts, and An account is deemed a child of a
 /// parent if the parent maintains delegated access on the child account by way of AuthAccount
-/// Capability wrapped in a Owner and saved in a AccountAdministrator. By
+/// Capability wrapped in an NFT and saved in a Collection. By
 /// the constructs defined in this contract, a linked account can be identified by a stored
 /// Handler.
 ///
-/// While one generally would not want to share account access with other parties,
-/// this can be helpful in a low-stakes environment where the parent account's owner
-/// wants to delegate transaction signing to a secondary party. The idea for this setup
-/// was born out of pursuit of a more seamless on-chain gameplay UX where a user could
-/// let a game client submit transactions on their behalf without signing over the whole
-/// of their primary account, and do so in a way that didn't require custom a Capability.
+/// While one generally would not want to share account access with other parties, this can be helpful in a low-stakes
+/// environment where the parent account's owner wants to delegate transaction signing to a secondary party. The idea 
+/// for this setup was born out of pursuit of a more seamless on-chain gameplay UX where a user could let a game client
+/// submit transactions on their behalf without signing over the whole of their primary account, and do so in a way
+/// that didn't require custom a Capability.
 ///
-/// With that said, users should bear in mind that any assets in a linked account incur
-/// obvious custodial risk, and that it's generally an anti-pattern to pass around AuthAccounts.
-/// In this case, a user owns both accounts so they are technically passing an AuthAccount
-/// to themselves in calls to resources that reside in their own account, so it was deemed
-/// a valid application of the pattern. That said, a user should be cognizant of the party
-/// with key access on the linked account as this pattern requires some degree of trust in the
-/// custodying party.
+/// With that said, users should bear in mind that any assets in a linked account incur obvious custodial risk, and
+/// that it's generally an anti-pattern to pass around AuthAccounts. In this case, a user owns both accounts so they
+/// are technically passing an AuthAccount to themselves in calls to resources that reside in their own account, so 
+/// it was deemed a valid application of the pattern. That said, a user should be cognizant of the party with key
+/// access on the linked account as this pattern requires some degree of trust in the custodying party.
 ///
 pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
 
-    /// The number of Owner tokens in existence
+    /// The number of NFTs in existence
     pub var totalSupply: UInt64
 
     // NFT conforming events
@@ -41,9 +54,10 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     pub event Deposit(id: UInt64, to: Address?)
     
     // LinkedAccounts Events
-    pub event AddedLinkedAccount(parent: Address, child: Address)
+    pub event MintedNFT(id: UInt64, parent: Address, child: Address)
+    pub event AddedLinkedAccount(parent: Address, child: Address, nftID: UInt64)
     pub event LinkedAccountGrantedCapability(parent: Address, child: Address, capabilityType: Type)
-    pub event CapabilityRevokedFromLinkedAccount(parent: Address, child: Address, capabilityType: Type)
+    pub event RevokedCapabilitiesFromLinkedAccount(parent: Address, child: Address, capabilityTypes: [Type])
     pub event RemovedLinkedAccount(parent: Address, child: Address)
     pub event CollectionCreated()
 
@@ -95,8 +109,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             self.isActive = true
         }
 
-        /** --- MetadataViews.Resolver --- */
-        //
         /// Returns the metadata view types supported by this Handler
         ///
         /// @return An array of metadata view types
@@ -138,8 +150,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
         }
 
-        /** --- HandlerPublic --- */
-        //
         /// Returns the Address of this linked account's parent Collection
         ///
         pub fun getParentAddress(): Address {
@@ -168,11 +178,9 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return self.isActive
         }
 
-        /** --- Handler --- */
-        //
-        /// Retrieves a granted Capability as a reference or nil if it does not exist. until CapabilityControllers make
+        /// Retrieves a granted Capability as a reference or nil if it does not exist.
         /// 
-        //  **NB**: This is a temporary solution for Capability auditing & easy revocation 
+        //  **Note**: This is a temporary solution for Capability auditing & easy revocation 
         /// their way to Cadence, enabling a parent account to issue, audit and easily revoke Capabilities to linked
         /// accounts.
         /// 
@@ -188,7 +196,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return &self.grantedCapabilities[type] as &Capability?
         }
 
-        /// Inserts the given Capability into this Handler's grantedCapabilities mapping
+        /// Inserts the given Capability into this Handler's grantedCapabilities mapping.
         ///
         /// @param cap: The Capability being granted
         ///
@@ -200,15 +208,31 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             self.grantedCapabilities.insert(key: cap.getType(), cap)
         }
 
-        /// Removes the Capability of given Type from this Handler's grantedCapabilities
-        /// mapping
+        /// Removes the Capability of given Type from this Handler's grantedCapabilities mapping.
         ///
         /// @param type: The Type of Capability to be removed
         ///
         /// @return the removed Capability or nil if it did not exist
         ///
-        access(contract) fun revokeCapability(_ type: Type): Capability? {
-            return self.grantedCapabilities.remove(key: type)
+        access(contract) fun revokeCapabilities(_ types: [Type]): [Type] {
+            // return self.grantedCapabilities.remove(key: type)
+            let removedTypes: [Type] = []
+            for capType in types {
+                if let removed = self.grantedCapabilities.remove(key: capType) {
+                    removedTypes.append(removed.getType())
+                }
+            }
+            return removedTypes
+        }
+
+        /// Removes all granted Capabilities from this Handler's grantedCapabilities mapping. Helpful when removing
+        /// a Handler association from a Collection (AKA unlinking an account) as well as limiting the number of events
+        /// emitted compared to revoking one-by-one.
+        ///
+        /// @return An array containing the types of all Capabilities removed
+        ///
+        access(contract) fun revokeAllCapabilities(): [Type] {
+            return self.revokeCapabilities(self.grantedCapabilities.keys)
         }
 
         /// Sets the isActive Bool flag to false
@@ -235,9 +259,9 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource NFT : NFTPublic, NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
-        /// The AuthAccount Capability for the linked account this Owner represents
+        /// The AuthAccount Capability for the linked account this NFT represents
         access(self) let authAccountCapability: Capability<&AuthAccount>
-        /// Capability for the relevant AccountHandler
+        /// Capability for the relevant Handler
         access(self) var handlerCapability: Capability<&Handler>
 
         init(
@@ -256,7 +280,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun getViews(): [Type] {
             let handlerRef: &LinkedAccounts.Handler = self.handlerCapability.borrow()
-                ?? panic("Problem with AccountHandler Capability in this Owner")
+                ?? panic("Problem with Handler Capability in this NFT")
             let views = handlerRef.getViews()
             views.appendAll([
                 Type<MetadataViews.NFTCollectionData>(),
@@ -277,7 +301,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 return LinkedAccounts.resolveView(view)
             } else {
                 let handlerRef: &LinkedAccounts.Handler = self.handlerCapability.borrow()
-                ?? panic("Problem with AccountHandler Capability in this Owner")
+                ?? panic("Problem with Handler Capability in this NFT")
                 return handlerRef.resolveView(view)
             }
             
@@ -286,20 +310,18 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         /// Get a reference to the child AuthAccount object.
         ///
         pub fun getAuthAcctRef(): &AuthAccount {
-            return self.authAccountCapability.borrow() ?? panic("Problem with AuthAccount Capability in Owner!")
+            return self.authAccountCapability.borrow() ?? panic("Problem with AuthAccount Capability in NFT!")
         }
 
         /// Returns a reference to the Handler
         ///
         pub fun getHandlerRef(): &Handler {
-            return self.handlerCapability.borrow() ?? panic("Problem with LinkedAccounts.Handler Capability in Owner!")
+            return self.handlerCapability.borrow() ?? panic("Problem with LinkedAccounts.Handler Capability in NFT!")
         }
 
-        /** --- OwnerPublic --- */
-        //
-        /// Returns the child account address this Owner manages a Capability for
+        /// Returns the child account address this NFT manages a Capability for
         ///
-        /// @return the address of the account this Owner has delegated access to
+        /// @return the address of the account this NFT has delegated access to
         ///
         pub fun getChildAccountAddress(): Address {
             return self.getAuthAcctRef().address
@@ -313,12 +335,12 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return self.getHandlerPublicRef().getParentAddress()
         }
 
-        /// Returns a reference to the AccountHandler as AccountHandlerPublic
+        /// Returns a reference to the Handler as HandlerPublic
         ///
-        /// @return a reference to the AccountHandler as AccountHandlerPublic 
+        /// @return a reference to the Handler as HandlerPublic 
         ///
-        pub fun getHandlerPublicRef(): &AccountHandler{AccountHandlerPublic} {
-            return self.handlerCapability.borrow() ?? panic("Problem with AccountHandler Capability in Owner!")
+        pub fun getHandlerPublicRef(): &Handler{HandlerPublic} {
+            return self.handlerCapability.borrow() ?? panic("Problem with Handler Capability in NFT!")
         }
     }
 
@@ -330,7 +352,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource interface CollectionPublic {
         pub fun getLinkedAccountAddresses(): [Address]
-        pub fun getIDOfLinkedAccountNFT(ofAddress: Address): UInt64?
+        pub fun getIDOfNFTByAddress(address: Address): UInt64?
         pub fun deposit(token: @NonFungibleToken.NFT)
         pub fun getIDs(): [UInt64]
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT
@@ -342,42 +364,38 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         }
     }
 
-    /// Resource allows for management of on-chain associations between accounts.
-    /// Note that while creating child accounts is available in this resource,
-    /// revoking keys on those child accounts is not.
+    /// A Collection of LinkedAccounts.NFTs, maintaining all delegated AuthAccount & Handler Capabilities in NFTs.
+    /// One NFT (representing delegated account access) per linked account can be maintained in this Collection,
+    /// enabling public view Capabilities and owner-related management methods, including removing linked accounts, as
+    /// well as granting & revoking Capabilities. 
     /// 
     pub resource Collection : CollectionPublic, NonFungibleToken.Provider, NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, MetadataViews.ResolverCollection {
-
-        // pub let linkedAccounts: @{Address: Owner}
-        // pub let idToAddress: {UInt64: Address}
+        /// Mapping of contained LinkedAccount.NFTs as NonFungibleToken.NFTs
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
+        /// Mapping linked account Address to relevant NFT.id
         pub let addressToID: {Address: UInt64}
 
         init() {
-            // self.linkedAccounts <- {}
-            // self.idToAddress = {}
             self.ownedNFTs <-{}
             self.addressToID = {}
         }
-        
-        /** --- MetadataViews.ResolverCollection --- */
-        //
-        /// Returns the Owner as a Resolver for the specified ID
+
+        /// Returns the NFT as a Resolver for the specified ID
         ///
-        /// @param id: The id of the Owner
+        /// @param id: The id of the NFT
         ///
-        /// @return A reference to the Owner as a Resolver
+        /// @return A reference to the NFT as a Resolver
         ///
         pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
             let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT?
-                ?? panic("Administrator does not have Owner with specified ID")
-            let owner = nft as! &LinkedAccounts.NFT
-            return owner as &AnyResource{MetadataViews.Resolver}
+                ?? panic("Administrator does not have NFT with specified ID")
+            let castNFT = nft as! &LinkedAccounts.NFT
+            return castNFT as &AnyResource{MetadataViews.Resolver}
         }
 
         /// Returns the IDs of the NFTs in this Collection
         ///
-        /// @return an array of the contained Owner resources
+        /// @return an array of the contained NFT resources
         ///
         pub fun getIDs(): [UInt64] {
             return self.ownedNFTs.keys
@@ -391,7 +409,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///         Collection
         ///
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
-            return &self.ownedNFTs[id] as &NonFungibleToken.NFT? ?? panic("Administrator does not have Owner with specified ID")
+            return &self.ownedNFTs[id] as &NonFungibleToken.NFT? ?? panic("Administrator does not have NFT with specified ID")
         }
 
         /// Returns a reference to the specified NonFungibleToken.NFT with given ID or nil
@@ -414,8 +432,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun borrowLinkedAccountsNFTPublic(id: UInt64): &LinkedAccounts.NFT{LinkedAccounts.NFTPublic}? {
             if let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT? {
-                let owner = nft as! &LinkedAccounts.NFT
-                return owner as &LinkedAccounts.NFT{LinkedAccounts.NFTPublic}?
+                let castNFT = nft as! &LinkedAccounts.NFT
+                return castNFT as &LinkedAccounts.NFT{LinkedAccounts.NFTPublic}?
             }
             return nil
         }
@@ -455,7 +473,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
 
             // Emit events
             emit Deposit(id: id, to: self.owner?.address)
-            emit AddedLinkedAccount(parent: self.owner!.address, child: linkedAccountAddress)
+            emit AddedLinkedAccount(parent: self.owner!.address, child: linkedAccountAddress, nftID: id)
 
             destroy oldToken
         }
@@ -478,12 +496,12 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             // Get the token from the ownedNFTs mapping
             let token: @NonFungibleToken.NFT <- self.ownedNFTs.remove(key: withdrawID)!
             
-            // Loading a dictionary can be heavy - get a reference instead
+            // Get a reference to the ownedNFTs mapping
             let addressToIDRef = &self.addressToID as &{Address: UInt64}
             // Get the Address associated with the withdrawing token id
             let childAddress: Address = addressToIDRef.keys[
                     addressToIDRef.values.firstIndex(of: withdrawID)!
-                ]!
+                ]
             // Remove the address entry in our secondary mapping
             self.addressToID.remove(key: childAddress)!
 
@@ -503,14 +521,12 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun withdrawByAddress(address: Address): @NonFungibleToken.NFT {
             // Get the id of the assocated NFT
-            let id: UInt64 = self.getIDOfLinkedAccountNFT(ofAddress: address)
+            let id: UInt64 = self.getIDOfNFTByAddress(address: address)
                 ?? panic("This Collection does not contain an NFT associated with the given address ".concat(address.toString()))
             // Withdraw & return the NFT
             return <- self.withdraw(withdrawID: id)
         }
 
-        /** --- CollectionPublic --- */
-        //
         /// Returns an array of all child account addresses
         ///
         /// @return an array containing the Addresses of the linked accounts
@@ -527,22 +543,20 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         /// @return The id of the associated LinkedAccounts.NFT or nil if it does not exist in this Collection
         ///
-        pub fun getIDOfLinkedAccountNFT(ofAddress: Address): UInt64? {
+        pub fun getIDOfNFTByAddress(address: Address): UInt64? {
             let addressToIDRef = &self.addressToID as &{Address: UInt64}
-            return addressToIDRef[ofAddress]
+            return addressToIDRef[address]
         }
 
-        /** --- AccountAdministrator --- */
-        //
-        /// Returns a reference to the Owner as a Resolver based on the given address
+        /// Returns a reference to the NFT as a Resolver based on the given address
         ///
         /// @param address: The address of the linked account
         ///
-        /// @return A reference to the Owner as a Resolver
+        /// @return A reference to the NFT as a Resolver
         ///
         pub fun borrowViewResolverFromAddress(address: Address): &{MetadataViews.Resolver} {
             return self.borrowViewResolver(
-                id: self.addressToID[address] ?? panic("No LinkedAccounts.Owner with given Address")
+                id: self.addressToID[address] ?? panic("No LinkedAccounts.NFT with given Address")
             )
         }
 
@@ -576,11 +590,11 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return nil
         }
 
-        /// Returns a reference to the specified linked account's AccountHandler
+        /// Returns a reference to the specified linked account's Handler
         ///
         /// @param address: The address of the relevant linked account
         ///
-        /// @return the child account's AccountHandler as ephemeral reference or nil if the
+        /// @return the child account's Handler as ephemeral reference or nil if the
         ///         address is not of a linked account
         ///
         pub fun getHandlerRef(address: Address): &Handler? {
@@ -590,7 +604,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return nil
         }
 
-        // TODO: NFT refactor
         /// Add an existing account as a linked account to this Collection. This would be done in either a multisig
         /// transaction or by the linking account linking & publishing its AuthAccount Capability for the Collection's
         /// owner.
@@ -607,10 +620,10 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             pre {
                 linkedAccountCap.check():
                     "Problem with given AuthAccount Capability!"
-                !self.linkedAccounts.containsKey(linkedAccountCap.borrow()!.address):
-                    "Child account with given address already exists!"
+                !self.addressToID.containsKey(linkedAccountCap.borrow()!.address):
+                    "Collection already has LinkedAccount.NFT for given account!"
                 self.owner != nil:
-                    "Cannot add a linked account without an owner for this administrator!"
+                    "Cannot add a linked account without an owner for this Collection!"
             }
             // Get a &AuthAccount reference from the the given AuthAccount Capability
             let linkedAccountRef: &AuthAccount = linkedAccountCap.borrow()!
@@ -618,62 +631,61 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             let childAddress = linkedAccountRef.address
             let parentAddress = self.owner!.address
 
-            // Construct paths for the AccountHandler & its Capabilities
+            // Construct paths for the Handler & its Capabilities
             let handlerStoragePath = StoragePath(identifier: handlerPathSuffix)
-                ?? panic("Could not construct StoragePath for AccountHandler with given suffix")
+                ?? panic("Could not construct StoragePath for Handler with given suffix")
             let handlerPublicPath = PublicPath(identifier: handlerPathSuffix)
-                ?? panic("Could not construct PublicPath for AccountHandler with given suffix")
+                ?? panic("Could not construct PublicPath for Handler with given suffix")
             let handlerPrivatePath = PrivatePath(identifier: handlerPathSuffix)
-                ?? panic("Could not construct PrivatePath for AccountHandler with given suffix")
+                ?? panic("Could not construct PrivatePath for Handler with given suffix")
 
-            // Create a AccountHandler
-            let handler <-create AccountHandler(
+            // Create a Handler
+            let handler <-create Handler(
                     parentAddress: parentAddress,
                     address: childAddress,
                     metadata: linkedAccountMetadata,
                     resolver: linkedAccountMetadataResolver
                 )
-            // Save the AccountHandler in the child account's storage & link
+            // Ensure nothing saved at expected paths
+            assert(
+                linkedAccountRef.type(at: handlerStoragePath) == nil,
+                message: "Linked account already has stored object at: ".concat(handlerStoragePath.toString())
+            )
+            // Save the Handler in the child account's storage & link
             linkedAccountRef.save(<-handler, to: handlerStoragePath)
             // Ensure public Capability linked
-            linkedAccountRef.link<&AccountHandler{AccountHandlerPublic}>(
+            linkedAccountRef.link<&Handler{HandlerPublic}>(
                 handlerPublicPath,
                 target: handlerStoragePath
             )
             // Ensure private Capability linked
-            linkedAccountRef.link<&AccountHandler>(
+            linkedAccountRef.link<&Handler>(
                 handlerPrivatePath,
                 target: handlerStoragePath
             )
-            // Get a Capability to the linked AccountHandler Cap in linked account's private storage
-            let handlerCap = linkedAccountRef
-                .getCapability<&
-                    AccountHandler
-                >(
+            // Get a Capability to the linked Handler Cap in linked account's private storage
+            let handlerCap = linkedAccountRef.getCapability<&Handler>(
                     handlerPrivatePath
                 )
             // Ensure the capability is valid before inserting it in administrator's linkedAccounts mapping
-            assert(handlerCap.check(), message: "Problem linking AccountHandler Capability in new child account!")
+            assert(handlerCap.check(), message: "Problem linking Handler Capability in new child account at PrivatePath!")
 
-            // Create a Owner, increment supply, & insert to linkedAccounts mapping
-            let owner <-create Owner(
+            // Create an NFT, increment supply, & deposit to this Collection before emitting MintedNFT
+            let nft <-LinkedAccounts.mintNFT(
                     authAccountCap: linkedAccountCap,
                     handlerCap: handlerCap
                 )
+            let nftID: UInt64 = nft.id
             LinkedAccounts.totalSupply = LinkedAccounts.totalSupply + 1
-            
-            // Add the id & owner to the relevant mappings
-            self.idToAddress[owner.id] = childAddress
-            self.linkedAccounts[childAddress] <-! owner
+            self.deposit(token: <-nft)
 
-            emit AddedLinkedAccount(parent: parentAddress, child: childAddress)
+            emit MintedNFT(id: nftID, parent: parentAddress, child: childAddress)
         }
 
-        // TODO: NFT refactor
-        /// Adds the given Capability to the AccountHandler at the provided Address
+        /// Adds the given Capability to the Handler at the provided Address
         ///
-        /// @param to: Address which is the key for the AccountHandler Cap
-        /// @param cap: Capability to be added to the AccountHandler
+        /// @param to: Address which is the key for the Handler Cap
+        /// @param cap: Capability to be added to the Handler
         ///
         pub fun addCapability(to: Address, _ cap: Capability) {
             pre {
@@ -683,7 +695,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             // Get ref to handler
             let handlerRef = self.getHandlerRef(
                     address: to
-                ) ?? panic("Problem with AccountHandler Capability for given address: ".concat(to.toString()))
+                ) ?? panic("Problem with Handler Capability for given address: ".concat(to.toString()))
             let capType: Type = cap.getType()
             
             // Pass the Capability to the linked account via the handler & emit
@@ -691,28 +703,26 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             emit LinkedAccountGrantedCapability(parent: self.owner!.address, child: to, capabilityType: capType)
         }
 
-        // TODO: NFT refactor
-        /// Removes the capability of the given type from the AccountHandler with the given Address
+        /// Removes the capability of the given type from the Handler with the given Address
         ///
-        /// @param from: Address indexing the AccountHandler Capability
-        /// @param type: The Type of Capability to be removed from the AccountHandler
+        /// @param from: Address indexing the Handler Capability
+        /// @param type: The Type of Capability to be removed from the Handler
         ///
-        pub fun removeCapability(from: Address, type: Type) {
+        pub fun removeCapabilities(from: Address, types: [Type]): [Type] {
             pre {
                 self.addressToID.containsKey(from):
                     "No linked account with given Address!"
             }
             // Get ref to handler and remove
-            let handlerRef = self.getHandlerRef(
+            let handlerRef: &LinkedAccounts.Handler = self.getHandlerRef(
                     address: from
-                ) ?? panic("Problem with AccountHandler Capability for given address: ".concat(from.toString()))
+                ) ?? panic("Problem with Handler Capability for given address: ".concat(from.toString()))
             // Revoke Capability & emit
-            handlerRef.revokeCapability(type)
-                ?? panic("Capability not properly revoked")
-            emit CapabilityRevokedFromLinkedAccount(parent: self.owner!.address, child: from, capabilityType: type)
+            let removedTypes: [Type] = handlerRef.revokeCapabilities(types)
+            emit RevokedCapabilitiesFromLinkedAccount(parent: self.owner!.address, child: from, capabilityTypes: types)
+            return removedTypes
         }
 
-        // TODO: NFT refactor
         /// Remove Handler, returning its Address if it exists.
         /// Note, removing a Handler does not revoke key access linked account if it has been added. This should be
         /// done in the same transaction in which this method is called.
@@ -721,29 +731,31 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         /// @return the Address of the account removed or nil if it wasn't linked to begin with
         ///
-        pub fun removeLinkedAccount(withAddress: Address): Address? {
-            if let owner: @NFT <-self.linkedAccounts.remove(key: withAddress) {
-                let ownerID = owner.id
-                // Get a reference to the AccountHandler from the Capability
-                let handlerRef = owner.getHandlerRef()
-                // Set the handler as inactive
-                handlerRef.setInactive()
-
-                // Remove all capabilities from the AccountHandler
-                for capType in handlerRef.getGrantedCapabilityTypes() {
-                    handlerRef.revokeCapability(capType)
-                }
-
-                // Destroy the owner, emit, & return the removed entry in idToAddress
-                destroy owner
-                emit RemovedLinkedAccount(parent: self.owner!.address, child: withAddress)
-                return self.idToAddress.remove(key: ownerID)
+        pub fun removeLinkedAccount(withAddress: Address): [Type] {
+            pre {
+                self.addressToID.containsKey(withAddress):
+                    "This Collection does not have NFT with given Address: ".concat(withAddress.toString())
             }
-            return nil
+            // Withdraw the NFT
+            let nft: @LinkedAccounts.NFT <-self.withdrawByAddress(address: withAddress) as! @NFT
+            let nftID: UInt64 = nft.id
+            
+            // Get a reference to the Handler from the NFT
+            let handlerRef: &LinkedAccounts.Handler = nft.getHandlerRef()
+            // Set the handler as inactive
+            handlerRef.setInactive()
+            // Remove all capabilities from the Handler
+            let removedCapTypes: [Type] = handlerRef.revokeAllCapabilities()
+
+            // Emit RemovedLinkedAccount & destroy NFT
+            emit RemovedLinkedAccount(parent: self.owner!.address, child: withAddress)
+            destroy nft
+            return removedCapTypes
         }
 
         destroy () {
             pre {
+                // Prevent destruction while account delegations remain in NFTs
                 self.ownedNFTs.length == 0:
                     "Attempting to destroy Colleciton with remaining NFTs!"
             }
@@ -783,8 +795,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         return false
     }
 
-    /* --- NonFungibleToken --- */
-    //
     /// Returns a new Collection
     ///
     pub fun createEmptyCollection(): @NonFungibleToken.Collection {
@@ -792,8 +802,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         return <-create Collection()
     }
 
-    /* --- ViewResolver --- */
-    //
     /// Function that returns all the Metadata Views implemented by a Non Fungible Token
     ///
     /// @return An array of Types defining the implemented views. This value will be used by
@@ -836,15 +844,32 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         return nil
     }
 
+    /// Contract method minting enabling caller to mint an NFT wrapping the provided Capabilities
+    ///
+    /// @param authAccountCap: The AuthAccount Capability that will be wrapped in the minted NFT
+    /// @param handlerCap: The Handler Capability that will be wrapped in the minted NFT
+    ///
+    /// @return the newly created NFT
+    ///
+    access(contract) fun mintNFT(
+        authAccountCap: Capability<&AuthAccount>,
+        handlerCap: Capability<&Handler>
+    ): @NFT {
+        return <-create NFT(
+            authAccountCap: authAccountCap,
+            handlerCap: handlerCap
+        )
+    }
+
     init() {
 
         self.totalSupply = 0
 
-        // Assign AccountAdministrator paths
+        // Assign Collection paths
         self.CollectionStoragePath = /storage/LinkedAccountCollection
         self.CollectionPublicPath = /public/LinkedAccountCollection
         self.CollectionPrivatePath = /private/LinkedAccountCollection
-        // Assign AccountHandler paths
+        // Assign Handler paths
         self.HandlerStoragePath = /storage/LinkedAccountHandler
         self.HandlerPublicPath = /public/LinkedAccountHandler
         self.HandlerPrivatePath = /private/LinkedAccountHandler

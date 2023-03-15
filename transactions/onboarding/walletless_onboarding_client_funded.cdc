@@ -1,12 +1,7 @@
-<<<<<<< HEAD
 #allowAccountLinking
 
 import ChildAccount from "../../contracts/ChildAccount.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
-=======
-import FungibleToken from "../../contracts/utility/FungibleToken.cdc"
-import FlowToken from "../../contracts/utility/FlowToken.cdc"
->>>>>>> a77960a (Refactor walletless onbaording txn for acct creation in txn)
 
 /// This transaction creates an account, funding creation via the signer and
 /// adding the provided public key. You'll notice this transaction is pretty

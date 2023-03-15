@@ -1,21 +1,22 @@
-import ChildAccount from "../../contracts/ChildAccount.cdc"
+import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
+import LinkedAccountMetadataViews from "../../contracts/LinkedAccountMetadataViews.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 
 /// Signing account claims a Capability to specified Address's AuthAccount
-/// and adds it as a child account in its ChildAccountManager, allowing it 
+/// and adds it as a child account in its LinkedAccounts.Collection, allowing it 
 /// to maintain the claimed Capability
 ///
 transaction(
         pubKey: String,
         childAddress: Address,
-        childAccountName: String,
-        childAccountDescription: String,
+        linkedAccountName: String,
+        linkedAccountDescription: String,
         clientIconURL: String,
         clientExternalURL: String
     ) {
 
-    let managerRef: &ChildAccount.ChildAccountManager
-    let info: ChildAccount.ChildAccountInfo
+    let collectionRef: &LinkedAccounts.Collection
+    let info: LinkedAccounts.ChildAccountInfo
     let childAccountCap: Capability<&AuthAccount>
 
     prepare(signer: AuthAccount) {
@@ -76,3 +77,4 @@ transaction(
         self.managerRef.addAsChildAccount(childAccountCap: self.childAccountCap, childAccountInfo: self.info)
     }
 }
+ 
