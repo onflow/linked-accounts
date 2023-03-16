@@ -18,23 +18,21 @@ transaction {
         }
         // Link the public Capability
         if !signer.getCapability<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPublicPath).check() {
             signer.unlink(LinkedAccounts.CollectionPublicPath)
-            signer.link<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}
-            >(
+            signer.link<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
                 LinkedAccounts.CollectionPublicPath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
         // Link the private Capability
         if !signer.getCapability<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPrivatePath).check() {
             signer.unlink(LinkedAccounts.CollectionPrivatePath)
             signer.link<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
             >(
                 LinkedAccounts.CollectionPrivatePath,
                 target: LinkedAccounts.CollectionStoragePath
@@ -42,4 +40,3 @@ transaction {
         }
     }
 }
- 

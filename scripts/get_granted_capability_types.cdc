@@ -1,17 +1,19 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 
-/// Returns the types a child account has been granted via
-/// its ChildAccountTag
+/// Returns the types of Capabilities a linked account has been granted via its LinkedAccounts.Handler.
 ///
-pub fun main(childAddress: Address): [Type]? {
+/// @param address: The account address to query against
+///
+/// @return An array of Capability Types the account has been granted via Collection -> Handler granting funnel
+///         or nil if the given account does not have a HandlerPublic Capability configured.
+pub fun main(address: Address): [Type]? {
 
     // Get a ref to the ChildAccountTagPublic if possible
-    if let tagRef = getAccount(childAddress).getCapability<
-            &ChildAccount.ChildAccountTag{ChildAccount.ChildAccountTagPublic}
-        >(ChildAccount.ChildAccountTagPublicPath).borrow() {
-
-        return tagRef.getGrantedCapabilityTypes()
+    if let handlerRef = getAccount(address).getCapability<
+            &LinkedAccounts.Handler{LinkedAccounts.HandlerPublic}
+        >(LinkedAccounts.HandlerPublicPath).borrow() {
+        // Return its granted types
+        return handlerRef.getGrantedCapabilityTypes()
     }
-
     return nil
 }

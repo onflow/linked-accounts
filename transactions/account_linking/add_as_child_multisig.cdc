@@ -6,7 +6,7 @@ import LinkedAccountMetadataViews from "../../contracts/LinkedAccountMetadataVie
 import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
 
 /// Links thie signing accounts as labeled, with the child's AuthAccount Capability
-/// maintained in the parent's LinkedAccounts.Collection resource.
+/// maintained in the parent's LinkedAccounts.Collection
 ///
 transaction(
     linkedAccountName: String,
@@ -35,23 +35,21 @@ transaction(
         }
         // Link the public Capability
         if !parent.getCapability<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPublicPath).check() {
             parent.unlink(LinkedAccounts.CollectionPublicPath)
-            parent.link<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}
-            >(
+            parent.link<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
                 LinkedAccounts.CollectionPublicPath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
         // Link the private Capability
         if !parent.getCapability<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPrivatePath).check() {
             parent.unlink(LinkedAccounts.CollectionPrivatePath)
             parent.link<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
             >(
                 LinkedAccounts.CollectionPrivatePath,
                 target: LinkedAccounts.CollectionStoragePath

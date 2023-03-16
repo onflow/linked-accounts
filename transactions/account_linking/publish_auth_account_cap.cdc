@@ -1,7 +1,5 @@
 #allowAccountLinking
 
-import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
-
 /// Signing account publishes a Capability to its AuthAccount for
 /// the specified parentAddress to claim
 ///

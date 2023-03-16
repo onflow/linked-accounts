@@ -247,6 +247,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource interface NFTPublic {
         pub let id: UInt64
+        pub fun checkAuthAccountCapability(): Bool
+        pub fun checkHandlerCapability(): Bool
         pub fun getChildAccountAddress(): Address
         pub fun getParentAccountAddress(): Address
         pub fun getHandlerPublicRef(): &Handler{HandlerPublic}
@@ -317,6 +319,22 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return self.handlerCapability.borrow() ?? panic("Problem with LinkedAccounts.Handler Capability in NFT!")
         }
 
+        /// Returns whether AuthAccount Capability link is currently active
+        ///
+        /// @return True if the link is active, false otherwise
+        ///
+        pub fun checkAuthAccountCapability(): Bool {
+            return self.authAccountCapability.check()
+        }
+
+        /// Returns whether Handler Capability link is currently active
+        ///
+        /// @return True if the link is active, false otherwise
+        ///
+        pub fun checkHandlerCapability(): Bool {
+            return self.handlerCapability.check()
+        }
+
         /// Returns the child account address this NFT manages a Capability for
         ///
         /// @return the address of the account this NFT has delegated access to
@@ -349,9 +367,11 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     /// about specific child accounts by Address
     ///
     pub resource interface CollectionPublic {
+        pub fun getAddressToID(): {Address: UInt64}
         pub fun getLinkedAccountAddresses(): [Address]
         pub fun getIDOfNFTByAddress(address: Address): UInt64?
         pub fun getIDs(): [UInt64]
+        pub fun isLinkActive(onAddress: Address): Bool
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
             post {
                 result.id == id: "The returned reference's ID does not match the requested ID"
@@ -368,6 +388,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     "Cannot borrow ExampleNFT reference: the ID of the returned reference is incorrect"
             }
         }
+        pub fun borrowViewResolverFromAddress(address: Address): &{MetadataViews.Resolver}
     }
 
     /// A Collection of LinkedAccounts.NFTs, maintaining all delegated AuthAccount & Handler Capabilities in NFTs.
@@ -444,7 +465,20 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return nil
         }
 
-        // TODO: Consider - Do we want anyone to be able to deposit one of these NFTs into another's collection
+        /// Returns whether this Collection has an active link for the given address.
+        ///
+        /// @return True if there is an NFT in this collection associated with the given address that has active
+        /// AuthAccount & Handler Capabilities and a Handler in the linked account that is set as active
+        ///
+        pub fun isLinkActive(onAddress: Address): Bool {
+            if let nftRef = self.borrowLinkedAccountNFT(address: onAddress) {
+                return nftRef.checkAuthAccountCapability() &&
+                    nftRef.checkHandlerCapability() &&
+                    nftRef.getHandlerRef().isCurrentlyActive()
+            }
+            return false
+        }
+
         /// Takes a given NonFungibleToken.NFT and adds it to this Collection's mapping of ownedNFTs, emitting both
         /// Deposit and AddedLinkedAccount since depositing LinkedAccounts.NFT is effectively giving a Collection owner
         /// delegated access to an account
@@ -507,12 +541,10 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
             // Get the token from the ownedNFTs mapping
             let token: @NonFungibleToken.NFT <- self.ownedNFTs.remove(key: withdrawID)!
-            
-            // Get a reference to the ownedNFTs mapping
-            let addressToIDRef = &self.addressToID as &{Address: UInt64}
+
             // Get the Address associated with the withdrawing token id
-            let childAddress: Address = addressToIDRef.keys[
-                    addressToIDRef.values.firstIndex(of: withdrawID)!
+            let childAddress: Address = self.addressToID.keys[
+                    self.addressToID.values.firstIndex(of: withdrawID)!
                 ]
             // Remove the address entry in our secondary mapping
             self.addressToID.remove(key: childAddress)!
@@ -537,6 +569,14 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 ?? panic("This Collection does not contain an NFT associated with the given address ".concat(address.toString()))
             // Withdraw & return the NFT
             return <- self.withdraw(withdrawID: id)
+        }
+
+        /// Getter method to make indexing linked account Addresses to relevant NFT.ids easy
+        ///
+        /// @return This collection's addressToID mapping, identifying a linked account's associated NFT.id
+        ///
+        pub fun getAddressToID(): {Address: UInt64} {
+            return self.addressToID
         }
 
         /// Returns an array of all child account addresses
@@ -706,9 +746,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 )
             let nftID: UInt64 = nft.id
             LinkedAccounts.totalSupply = LinkedAccounts.totalSupply + 1
-            self.deposit(token: <-nft)
-
             emit MintedNFT(id: nftID, parent: parentAddress, child: childAddress)
+            self.deposit(token: <-nft)
         }
 
         /// Adds the given Capability to the Handler at the provided Address
@@ -873,7 +912,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         return nil
     }
 
-    /// Contract method minting enabling caller to mint an NFT wrapping the provided Capabilities
+    /// Contract mint method enabling caller to mint an NFT, wrapping the provided Capabilities
     ///
     /// @param authAccountCap: The AuthAccount Capability that will be wrapped in the minted NFT
     /// @param handlerCap: The Handler Capability that will be wrapped in the minted NFT

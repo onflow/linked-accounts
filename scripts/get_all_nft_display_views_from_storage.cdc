@@ -1,6 +1,6 @@
 import NonFungibleToken from "../contracts/utility/NonFungibleToken.cdc"
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 
 /// Custom struct to make interpretation of NFT & Collection data easy client side
 pub struct NFTData {
@@ -107,20 +107,18 @@ pub fun main(address: Address): {Address: [NFTData]} {
     
     /* Iterate over any child accounts */ 
     //
-    // Get reference to ChildAccountManager if it exists
-    if let managerRef = getAccount(address).getCapability<
-            &{ChildAccount.ChildAccountManagerViewer}
+    // Get reference to LinkedAccounts.Collection if it exists
+    if let collectionRef = getAccount(address).getCapability<
+            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}
         >(
-            ChildAccount.ChildAccountManagerPublicPath
+            LinkedAccounts.CollectionPublicPath
         ).borrow() {
-        // Iterate over each child account in ChildAccountManagerRef
-        for childAddress in managerRef.getChildAccountAddresses() {
+        // Iterate over each linked account in ChildAccountManagerRef
+        for childAddress in collectionRef.getLinkedAccountAddresses() {
             if !allNFTData.containsKey(childAddress) {
                 // Insert the NFT metadata for those NFTs in each child account
                 // indexing on the account's address
                 allNFTData.insert(key: childAddress, getAllViewsFromAddress(childAddress))
-            } else {
-                
             }
         }
     }

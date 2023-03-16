@@ -1,7 +1,7 @@
 import FungibleToken from "../contracts/utility/FungibleToken.cdc"
 import FungibleTokenMetadataViews from "../contracts/utility/FungibleTokenMetadataViews.cdc"
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 
 /// Custom struct to easily communicate vault data to a client
 pub struct VaultInfo {
@@ -104,14 +104,14 @@ pub fun main(address: Address): {Type: VaultInfo} {
     
     /* Iterate over any child accounts */ 
     //
-    // Get reference to ChildAccountManager if it exists
-    if let managerRef = getAccount(address).getCapability<
-            &{ChildAccount.ChildAccountManagerViewer}
+    // Get reference to LinkedAccounts.Collection if it exists
+    if let collectionRef = getAccount(address).getCapability<
+            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}
         >(
-            ChildAccount.ChildAccountManagerPublicPath
+            LinkedAccounts.CollectionPublicPath
         ).borrow() {
-        // Iterate over each child account in ChildAccountManagerRef
-        for childAddress in managerRef.getChildAccountAddresses() {
+        // Iterate over each linked account in Collection
+        for childAddress in collectionRef.getLinkedAccountAddresses() {
             // Ensure all vault type balances are pooled across all addresses
             balances = merge(balances, getAllVaultInfoInAddressStorage(childAddress))
         }

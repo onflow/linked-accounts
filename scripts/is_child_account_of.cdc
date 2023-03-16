@@ -1,24 +1,16 @@
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 
-/// This script allows one to determine if a given account is a child 
-/// account of the specified parent account as the parent-child account
-/// relationship is defined in the ChildAccount contract
+/// This script allows one to determine if a given account is linked as a child account of the specified parent account
+/// as the link is defined by the LinkedAccounts contract
 ///
 pub fun main(parent: Address, child: Address): Bool {
 
-    // Get a reference to the ChildAccountManagerViewer in parent's account
-    if let viewerRef = getAccount(parent).getCapability<
-            &{ChildAccount.ChildAccountManagerViewer}
-        >(ChildAccount.ChildAccountManagerPublicPath).borrow() {
-        // If the given child address is one of the parent's children account, check if it's active
-        if viewerRef.getChildAccountAddresses().contains(child) {
-            if let childAccountTagPublicRef = getAccount(child).getCapability<
-                    &ChildAccount.ChildAccountTag{ChildAccount.ChildAccountTagPublic}
-                >(ChildAccount.ChildAccountTagPublicPath).borrow() {
-
-                return childAccountTagPublicRef.isCurrentlyActive()
-            }
-        }
+    // Get a reference to the LinkedAccounts.Collection in parent's account
+    if let collectionRef = getAccount(parent).getCapability<
+            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}
+        >(LinkedAccounts.CollectionPublicPath).borrow() {
+        // Check if the link is active between accounts
+        collectionRef.isLinkActive(onAddress: child)
     }
     
     return false
