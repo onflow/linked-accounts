@@ -10,8 +10,6 @@
 
 import NonFungibleToken from "./utility/NonFungibleToken.cdc"
 import ViewResolver from "./utility/ViewResolver.cdc"
-import FungibleToken from "./utility/FungibleToken.cdc"
-import FlowToken from "./utility/FlowToken.cdc"
 import MetadataViews from "./utility/MetadataViews.cdc"
 import LinkedAccountMetadataViews from "./LinkedAccountMetadataViews.cdc"
 
@@ -353,9 +351,17 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     pub resource interface CollectionPublic {
         pub fun getLinkedAccountAddresses(): [Address]
         pub fun getIDOfNFTByAddress(address: Address): UInt64?
-        pub fun deposit(token: @NonFungibleToken.NFT)
         pub fun getIDs(): [UInt64]
-        pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT
+        pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
+            post {
+                result.id == id: "The returned reference's ID does not match the requested ID"
+            }
+        }
+        pub fun borrowNFTSafe(id: UInt64): &NonFungibleToken.NFT? {
+            post {
+                result == nil || result!.id == id: "The returned reference's ID does not match the requested ID"
+            }
+        }
         pub fun borrowLinkedAccountsNFTPublic(id: UInt64): &LinkedAccounts.NFT{LinkedAccounts.NFTPublic}? {
             post {
                 (result == nil) || (result?.id == id):
@@ -493,6 +499,12 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 self.owner!.address != nil:
                     "Cannot withdraw LinkedAccount.NFT from unknown party!"
             }
+            post {
+                result.id == withdrawID:
+                    "Incorrect NFT withdrawn from Collection!"
+                !self.ownedNFTs.containsKey(withdrawID):
+                    "Collection still contains NFT with requested ID!"
+            }
             // Get the token from the ownedNFTs mapping
             let token: @NonFungibleToken.NFT <- self.ownedNFTs.remove(key: withdrawID)!
             
@@ -625,12 +637,17 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 self.owner != nil:
                     "Cannot add a linked account without an owner for this Collection!"
             }
+
+            /** --- Assign account variables --- */
+            //
             // Get a &AuthAccount reference from the the given AuthAccount Capability
             let linkedAccountRef: &AuthAccount = linkedAccountCap.borrow()!
             // Assign parent & child address to identify sides of the link
             let childAddress = linkedAccountRef.address
             let parentAddress = self.owner!.address
 
+            /** --- Path construction & validation --- */
+            //
             // Construct paths for the Handler & its Capabilities
             let handlerStoragePath = StoragePath(identifier: handlerPathSuffix)
                 ?? panic("Could not construct StoragePath for Handler with given suffix")
@@ -638,7 +655,22 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 ?? panic("Could not construct PublicPath for Handler with given suffix")
             let handlerPrivatePath = PrivatePath(identifier: handlerPathSuffix)
                 ?? panic("Could not construct PrivatePath for Handler with given suffix")
+            // Ensure nothing saved at expected paths
+            assert(
+                linkedAccountRef.type(at: handlerStoragePath) == nil,
+                message: "Linked account already has stored object at: ".concat(handlerStoragePath.toString())
+            )
+            assert(
+                linkedAccountRef.getLinkTarget(handlerPublicPath) == nil,
+                message: "Linked account already has public Capability at: ".concat(handlerPublicPath.toString())
+            )
+            assert(
+                linkedAccountRef.getLinkTarget(handlerPrivatePath) == nil,
+                message: "Linked account already has private Capability at: ".concat(handlerPrivatePath.toString())
+            )
 
+            /** --- Configure newly linked account with Handler & get Capability --- */
+            //
             // Create a Handler
             let handler <-create Handler(
                     parentAddress: parentAddress,
@@ -646,11 +678,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     metadata: linkedAccountMetadata,
                     resolver: linkedAccountMetadataResolver
                 )
-            // Ensure nothing saved at expected paths
-            assert(
-                linkedAccountRef.type(at: handlerStoragePath) == nil,
-                message: "Linked account already has stored object at: ".concat(handlerStoragePath.toString())
-            )
             // Save the Handler in the child account's storage & link
             linkedAccountRef.save(<-handler, to: handlerStoragePath)
             // Ensure public Capability linked
@@ -670,6 +697,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             // Ensure the capability is valid before inserting it in administrator's linkedAccounts mapping
             assert(handlerCap.check(), message: "Problem linking Handler Capability in new child account at PrivatePath!")
 
+            /** --- Wrap caps in newly minted NFT & deposit --- */
+            //
             // Create an NFT, increment supply, & deposit to this Collection before emitting MintedNFT
             let nft <-LinkedAccounts.mintNFT(
                     authAccountCap: linkedAccountCap,
@@ -827,8 +856,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     publicPath: LinkedAccounts.CollectionPublicPath,
                     providerPath: LinkedAccounts.CollectionPrivatePath,
                     publicCollection: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(),
-                    publicLinkedType: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, MetadataViews.ResolverCollection}>(),
-                    providerLinkedType: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Provider, MetadataViews.ResolverCollection}>(),
+                    publicLinkedType: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(),
+                    providerLinkedType: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}>(),
                     createEmptyCollectionFunction: (fun (): @NonFungibleToken.Collection {
                         return <-LinkedAccounts.createEmptyCollection()
                     })

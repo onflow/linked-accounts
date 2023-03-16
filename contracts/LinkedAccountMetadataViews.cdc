@@ -39,7 +39,10 @@ pub contract LinkedAccountMetadataViews {
         }
     }
 
-    /// A struct enabling LinkedAccountHandler to maintain implementer defined metadata
+    // TODO: Could be consolidated with AccountMetadata interface above, but need to further consider spoofing
+    // attack vectors, especially with public deposit() on LinkedAccounts.Collection...
+    //
+    /// A struct enabling LinkedAccount.Handler to maintain implementer defined metadata
     /// resolver in conjunction with the default structs above
     ///
     pub struct interface MetadataResolver {
