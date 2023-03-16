@@ -3,6 +3,7 @@
 import ChildAccount from "../../contracts/ChildAccount.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 
+// TODO: Refactor on new impl
 /// This transaction creates an account using the client's ChildAccountCreator,
 /// funding creation via the signing account and adding the provided public key.
 /// A ChildAccountTag resource is saved in the new account, identifying it as an
