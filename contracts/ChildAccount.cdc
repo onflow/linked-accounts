@@ -41,6 +41,8 @@ pub contract ChildAccount {
 
     /* Standard paths */
     //
+    // **NOTE:** AuthAccount.linkAccount() has been updated to only accept PrivatePath, should link at caller-defined
+    // PrivatePath
     pub let AuthAccountCapabilityPath: CapabilityPath
     pub let ChildAccountManagerStoragePath: StoragePath
     pub let ChildAccountManagerPublicPath: PublicPath
@@ -452,7 +454,7 @@ pub contract ChildAccount {
             signer: AuthAccount,
             initialFundingAmount: UFix64,
             childAccountInfo: ChildAccountInfo,
-            authAccountCapPath: CapabilityPath
+            authAccountCapPath: PrivatePath
         ): AuthAccount {
             
             // Create the child account
