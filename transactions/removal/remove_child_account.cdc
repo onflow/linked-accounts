@@ -10,7 +10,7 @@ transaction(childAddress: Address) {
     let collectionRef: &LinkedAccounts.Collection
     
     prepare(signer: AuthAccount) {
-        // Assign a reference to signer's ChildAccountmanager
+        // Assign a reference to signer's LinkedAccounts.Collection
         self.collectionRef = signer.borrow<&LinkedAccounts.Collection>(
                 from: LinkedAccounts.CollectionStoragePath
             ) ?? panic("Signer does not have a LinkedAccounts Collection configured!")

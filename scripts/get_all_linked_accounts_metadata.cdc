@@ -40,7 +40,7 @@ pub fun main(address: Address): {Address: LinkedAccountData} {
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         let addressToID: {Address: UInt64}  = collectionRef.getAddressToID()
-        // Iterate over each linked account in ChildAccountManagerRef
+        // Iterate over each linked account in LinkedAccounts.Collection
         for linkedAccountAddress in addressToID.keys {
             let accountInfo: LinkedAccountMetadataViews.AccountInfo = (collectionRef.borrowViewResolver(
                     id: addressToID[linkedAccountAddress]!

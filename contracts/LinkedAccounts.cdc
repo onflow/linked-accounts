@@ -460,7 +460,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun borrowViewResolver(id: UInt64): &{MetadataViews.Resolver} {
             let nft = &self.ownedNFTs[id] as auth &NonFungibleToken.NFT?
-                ?? panic("Administrator does not have NFT with specified ID")
+                ?? panic("Collection does not have NFT with specified ID")
             let castNFT = nft as! &LinkedAccounts.NFT
             return castNFT as &AnyResource{MetadataViews.Resolver}
         }
@@ -481,7 +481,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///         Collection
         ///
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
-            return &self.ownedNFTs[id] as &NonFungibleToken.NFT? ?? panic("Administrator does not have NFT with specified ID")
+            return &self.ownedNFTs[id] as &NonFungibleToken.NFT? ?? panic("Collection does not have NFT with specified ID")
         }
 
         /// Returns a reference to the specified NonFungibleToken.NFT with given ID or nil
@@ -670,7 +670,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         /// @param address: The Address of the child account
         ///
-        /// @return the reference to the child account's ChildAccountTag
+        /// @return the reference to the child account's Handler
         ///
         pub fun borrowLinkedAccountNFT(address: Address): &LinkedAccounts.NFT? {
             let addressToIDRef = &self.addressToID as &{Address: UInt64}
@@ -788,7 +788,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             let handlerCap = linkedAccountRef.getCapability<&Handler>(
                     handlerPrivatePath
                 )
-            // Ensure the capability is valid before inserting it in administrator's linkedAccounts mapping
+            // Ensure the capability is valid before inserting it in collection's linkedAccounts mapping
             assert(handlerCap.check(), message: "Problem linking Handler Capability in new child account at PrivatePath!")
 
             /** --- Wrap caps in newly minted NFT & deposit --- */

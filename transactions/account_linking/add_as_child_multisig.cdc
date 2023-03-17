@@ -55,7 +55,7 @@ transaction(
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
-        // Get ChildAccountManager reference from signer
+        // Get Collection reference from signer
         self.collectionRef = parent.borrow<
                 &LinkedAccounts.Collection
             >(

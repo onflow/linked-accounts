@@ -97,7 +97,7 @@ pub fun getAllViewsFromAddress(_ address: Address): [NFTData] {
 /// which would result in memory errors. To compose a script that does cover accounts with
 /// a large number of sub-accounts and/or NFTs within those accounts, see example 5 in
 /// the NFT Catalog's README: https://github.com/dapperlabs/nft-catalog and adapt for use
-/// with ChildAccountManager
+/// with LinkedAccounts.Collection
 ///
 pub fun main(address: Address): {Address: [NFTData]} {
     let allNFTData: {Address: [NFTData]} = {}
@@ -113,7 +113,7 @@ pub fun main(address: Address): {Address: [NFTData]} {
         >(
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
-        // Iterate over each linked account in ChildAccountManagerRef
+        // Iterate over each linked account in LinkedAccounts.Collection
         for childAddress in collectionRef.getLinkedAccountAddresses() {
             if !allNFTData.containsKey(childAddress) {
                 // Insert the NFT metadata for those NFTs in each child account

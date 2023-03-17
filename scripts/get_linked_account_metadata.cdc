@@ -39,7 +39,7 @@ pub fun main(parent: Address, child: Address): LinkedAccountData? {
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         let addressToID: {Address: UInt64}  = collectionRef.getAddressToID()
-        // Iterate over each linked account in ChildAccountManagerRef
+        // Iterate over each linked account in LinkedAccounts.Collection
         let accountInfo: LinkedAccountMetadataViews.AccountInfo = (collectionRef.borrowViewResolverFromAddress(
                 address: child
             ).resolveView(

@@ -8,7 +8,7 @@ import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 ///         or nil if the given account does not have a HandlerPublic Capability configured.
 pub fun main(address: Address): [Type]? {
 
-    // Get a ref to the ChildAccountTagPublic if possible
+    // Get a ref to the LinkedAccounts.Handler if possible
     if let handlerRef = getAccount(address).getCapability<
             &LinkedAccounts.Handler{LinkedAccounts.HandlerPublic}
         >(LinkedAccounts.HandlerPublicPath).borrow() {
