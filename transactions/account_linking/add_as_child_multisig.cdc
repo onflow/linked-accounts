@@ -11,7 +11,7 @@ import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
 transaction(
     linkedAccountName: String,
     linkedAccountDescription: String,
-    clientIconURL: String,
+    clientThumbnailURL: String,
     clientExternalURL: String,
     authAccountPathSuffix: String,
     handlerPathSuffix: String
@@ -85,7 +85,7 @@ transaction(
         self.info = LinkedAccountMetadataViews.AccountInfo(
             name: linkedAccountName,
             description: linkedAccountDescription,
-            icon: MetadataViews.HTTPFile(url: clientIconURL),
+            thumbnail: MetadataViews.HTTPFile(url: clientThumbnailURL),
             externalURL: MetadataViews.ExternalURL(clientExternalURL)
         )
     }

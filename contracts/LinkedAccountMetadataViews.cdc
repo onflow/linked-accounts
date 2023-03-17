@@ -12,7 +12,7 @@ pub contract LinkedAccountMetadataViews {
         pub let name: String
         pub let description: String
         pub let creationTimestamp: UFix64
-        pub let icon: AnyStruct{MetadataViews.File}
+        pub let thumbnail: AnyStruct{MetadataViews.File}
         pub let externalURL: MetadataViews.ExternalURL
     }
 
@@ -22,19 +22,19 @@ pub contract LinkedAccountMetadataViews {
         pub let name: String
         pub let description: String
         pub let creationTimestamp: UFix64
-        pub let icon: AnyStruct{MetadataViews.File}
+        pub let thumbnail: AnyStruct{MetadataViews.File}
         pub let externalURL: MetadataViews.ExternalURL
         
         init(
             name: String,
             description: String,
-            icon: AnyStruct{MetadataViews.File},
+            thumbnail: AnyStruct{MetadataViews.File},
             externalURL: MetadataViews.ExternalURL
         ) {
             self.name = name
             self.description = description
             self.creationTimestamp = getCurrentBlock().timestamp
-            self.icon = icon
+            self.thumbnail = thumbnail
             self.externalURL = externalURL
         }
     }

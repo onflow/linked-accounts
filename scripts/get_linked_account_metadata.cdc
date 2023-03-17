@@ -8,7 +8,7 @@ pub struct LinkedAccountData {
     pub let name: String
     pub let description: String
     pub let creationTimestamp: UFix64
-    pub let icon: AnyStruct{MetadataViews.File}
+    pub let thumbnail: AnyStruct{MetadataViews.File}
     pub let externalURL: MetadataViews.ExternalURL
 
     init(
@@ -19,7 +19,7 @@ pub struct LinkedAccountData {
         self.name = accountInfo.name
         self.description = accountInfo.description
         self.creationTimestamp = accountInfo.creationTimestamp
-        self.icon = accountInfo.icon
+        self.thumbnail = accountInfo.thumbnail
         self.externalURL = accountInfo.externalURL
     }
 }

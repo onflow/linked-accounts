@@ -118,8 +118,11 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
             views.appendAll([
                 Type<LinkedAccountMetadataViews.AccountInfo>(),
-                self.metadata.getType()
+                Type<MetadataViews.Display>()
             ])
+            if self.metadata.getType() != Type<LinkedAccountMetadataViews.AccountInfo>() {
+                views.append(self.metadata.getType())
+            }
             return views
         }
         
@@ -135,8 +138,14 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     return LinkedAccountMetadataViews.AccountInfo(
                         name: self.metadata.name,
                         description: self.metadata.description,
-                        icon: self.metadata.icon,
+                        thumbnail: self.metadata.thumbnail,
                         externalURL: self.metadata.externalURL
+                    )
+                case Type<MetadataViews.Display>():
+                    return MetadataViews.Display(
+                        name: self.metadata.name,
+                        description: self.metadata.description,
+                        thumbnail: self.metadata.thumbnail
                     )
                 case self.metadata.getType():
                     return self.metadata
@@ -279,12 +288,13 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///         which parameter to pass to the resolveView() method.
         ///
         pub fun getViews(): [Type] {
-            let handlerRef: &LinkedAccounts.Handler = self.handlerCapability.borrow()
-                ?? panic("Problem with Handler Capability in this NFT")
+            let handlerRef: &LinkedAccounts.Handler = self.getHandlerRef()
             let views = handlerRef.getViews()
             views.appendAll([
                 Type<MetadataViews.NFTCollectionData>(),
-                Type<MetadataViews.NFTCollectionDisplay>()
+                Type<MetadataViews.NFTCollectionDisplay>(),
+                Type<MetadataViews.NFTView>(),
+                Type<MetadataViews.Display>()
             ])
             return views
         }
@@ -296,15 +306,33 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         /// @return A struct representing the requested view.
         ///
         pub fun resolveView(_ view: Type): AnyStruct? {
-            if view == Type<MetadataViews.NFTCollectionData>() ||
-                view == Type<MetadataViews.NFTCollectionDisplay>() {
-                return LinkedAccounts.resolveView(view)
-            } else {
-                let handlerRef: &LinkedAccounts.Handler = self.handlerCapability.borrow()
-                ?? panic("Problem with Handler Capability in this NFT")
-                return handlerRef.resolveView(view)
+            switch view {
+                case Type<MetadataViews.NFTCollectionData>():
+                    return LinkedAccounts.resolveView(view)
+                case Type<MetadataViews.NFTCollectionDisplay>():
+                    return LinkedAccounts.resolveView(view)
+                case Type<MetadataViews.NFTView>():
+                    let handlerRef = self.getHandlerRef()
+                    let accountInfo = (handlerRef.resolveView(
+                            Type<LinkedAccountMetadataViews.AccountInfo>()) as! LinkedAccountMetadataViews.AccountInfo?
+                        )!
+                    return MetadataViews.NFTView(
+                        id: self.id,
+                        uuid: self.uuid,
+                        display: handlerRef.resolveView(Type<MetadataViews.Display>()) as! MetadataViews.Display?,
+                        externalURL: accountInfo.externalURL,
+                        collectionData: LinkedAccounts.resolveView(Type<MetadataViews.NFTCollectionData>()) as! MetadataViews.NFTCollectionData?,
+                        collectionDisplay: LinkedAccounts.resolveView(Type<MetadataViews.NFTCollectionDisplay>()) as! MetadataViews.NFTCollectionDisplay?,
+                        royalties: nil,
+                        traits: nil
+                    )
+                case Type<MetadataViews.Display>():
+                    return self.getHandlerRef().resolveView(Type<MetadataViews.Display>())
+                default:
+                    let handlerRef: &LinkedAccounts.Handler = self.handlerCapability.borrow()
+                    ?? panic("Problem with Handler Capability in this NFT")
+                    return handlerRef.resolveView(view)
             }
-            
         }
 
         /// Get a reference to the child AuthAccount object.
