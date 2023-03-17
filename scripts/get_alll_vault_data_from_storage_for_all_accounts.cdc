@@ -98,11 +98,17 @@ pub fun merge(_ d1: {Type: VaultInfo}, _ d2: {Type: VaultInfo}): {Type: VaultInf
     return d1
 }
 
+/// Queries for FT.Vault info of all FT.Vaults in the specified account and all of its linked accounts
+///
+/// @param address: Address of the account to query FT.Vault data
+///
+/// @return A mapping of VaultInfo struct indexed on the Type of Vault
+///
 pub fun main(address: Address): {Type: VaultInfo} {
     // Get the balance info for the given address
     var balances: {Type: VaultInfo} = getAllVaultInfoInAddressStorage(address)
     
-    /* Iterate over any child accounts */ 
+    /* Iterate over any linked accounts */ 
     //
     // Get reference to LinkedAccounts.Collection if it exists
     if let collectionRef = getAccount(address).getCapability<
@@ -111,9 +117,9 @@ pub fun main(address: Address): {Type: VaultInfo} {
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         // Iterate over each linked account in Collection
-        for childAddress in collectionRef.getLinkedAccountAddresses() {
+        for linkedAccount in collectionRef.getLinkedAccountAddresses() {
             // Ensure all vault type balances are pooled across all addresses
-            balances = merge(balances, getAllVaultInfoInAddressStorage(childAddress))
+            balances = merge(balances, getAllVaultInfoInAddressStorage(linkedAccount))
         }
     }
     return balances 

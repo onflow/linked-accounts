@@ -1,7 +1,7 @@
 import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 
-/// This script returns whether the LinkedAccounts.Handler at the given address maintains a Capability of specified
-/// Type.
+/// This script returns whether the LinkedAccounts.Handler at the given address (if one exists) maintains a
+/// Capability of specified Type.
 /// 
 /// @param address: The address of the account to query against
 /// @param capabilityType: The Type of Capability the caller requests to know if the given account has in its 
