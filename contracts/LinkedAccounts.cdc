@@ -54,6 +54,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     // LinkedAccounts Events
     pub event MintedNFT(id: UInt64, parent: Address, child: Address)
     pub event AddedLinkedAccount(parent: Address, child: Address, nftID: UInt64)
+    pub event UpdatedLinkedAccountParentAddress(oldParent: Address, newParent: Address, child: Address)
     pub event LinkedAccountGrantedCapability(parent: Address, child: Address, capabilityType: Type)
     pub event RevokedCapabilitiesFromLinkedAccount(parent: Address, child: Address, capabilityTypes: [Type])
     pub event RemovedLinkedAccount(parent: Address, child: Address)
@@ -80,7 +81,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource Handler : HandlerPublic, MetadataViews.Resolver {
         /// Pointer to this account's parent account
-        access(contract) let parentAddress: Address
+        access(contract) var parentAddress: Address
         /// The address of the account where the ccountHandler resource resides
         access(contract) let address: Address
         /// Metadata about the purpose of this child account guarantees standard minimum metadata is stored
@@ -201,6 +202,14 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 self.isActive: "LinkedAccounts.Handler has been de-permissioned by parent!"
             }
             return &self.grantedCapabilities[type] as &Capability?
+        }
+
+        /// Updates this Handler's parentAddress, occurring whenever a corresponding NFT transfer occurs
+        ///
+        /// @param newAddress: The Address of the new parent account
+        ///
+        access(contract) fun updateParentAddress(_ newAddress: Address) {
+            self.parentAddress = newAddress
         }
 
         /// Inserts the given Capability into this Handler's grantedCapabilities mapping.
@@ -324,7 +333,15 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                         collectionData: LinkedAccounts.resolveView(Type<MetadataViews.NFTCollectionData>()) as! MetadataViews.NFTCollectionData?,
                         collectionDisplay: LinkedAccounts.resolveView(Type<MetadataViews.NFTCollectionDisplay>()) as! MetadataViews.NFTCollectionDisplay?,
                         royalties: nil,
-                        traits: nil
+                        traits: MetadataViews.dictToTraits(
+                                dict: {
+                                    "id": self.id,
+                                    "parentAddress": handlerRef.parentAddress,
+                                    "linkedAddress": handlerRef.address,
+                                    "creationTimestamp": accountInfo.creationTimestamp
+                                },
+                                excludedNames: nil
+                            )
                     )
                 case Type<MetadataViews.Display>():
                     return self.getHandlerRef().resolveView(Type<MetadataViews.Display>())
@@ -522,12 +539,14 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
             // Assign scoped variables from LinkedAccounts.NFT
             let token <- token as! @LinkedAccounts.NFT
+            let ownerAddress = self.owner!.address
             let linkedAccountAddress: Address = token.getAuthAcctRef().address
             let id: UInt64 = token.id
+            let handlerRef: &Handler = token.getHandlerRef()
             
             // Ensure associated Handler address matches the linked account address
             assert(
-                token.getHandlerRef().address == linkedAccountAddress,
+                handlerRef.address == linkedAccountAddress,
                 message: "LinkedAccount.NFT assocaited Handler address & AuthAccount addresses do not match!"
             )
             // Ensure this Collection has not already been granted delegated access to the given account
@@ -536,12 +555,19 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 message: "Already have delegated access to account address: ".concat(linkedAccountAddress.toString())
             )
 
+            // Update the Handler's parentAddress if needed
+            let oldParentAddress = handlerRef.getParentAddress()
+            if oldParentAddress != ownerAddress {
+                handlerRef.updateParentAddress(ownerAddress)
+                emit UpdatedLinkedAccountParentAddress(oldParent: oldParentAddress, newParent: ownerAddress, child: linkedAccountAddress)
+            }
+
             // Add the new token to the dictionary which removes the old one
             let oldToken <- self.ownedNFTs[id] <- token
 
             // Emit events
-            emit Deposit(id: id, to: self.owner?.address)
-            emit AddedLinkedAccount(parent: self.owner!.address, child: linkedAccountAddress, nftID: id)
+            emit Deposit(id: id, to: ownerAddress)
+            emit AddedLinkedAccount(parent: ownerAddress, child: linkedAccountAddress, nftID: id)
 
             destroy oldToken
         }
