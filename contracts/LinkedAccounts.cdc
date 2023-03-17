@@ -54,7 +54,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     // LinkedAccounts Events
     pub event MintedNFT(id: UInt64, parent: Address, child: Address)
     pub event AddedLinkedAccount(parent: Address, child: Address, nftID: UInt64)
-    pub event UpdatedLinkedAccountParentAddress(oldParent: Address, newParent: Address, child: Address)
+    pub event UpdatedLinkedAccountParentAddress(previousParent: Address, newParent: Address, child: Address)
+    pub event UpdatedAuthAccountCapabilityForLinkedAccount(id: UInt64, parent: Address, child: Address)
     pub event LinkedAccountGrantedCapability(parent: Address, child: Address, capabilityType: Type)
     pub event RevokedCapabilitiesFromLinkedAccount(parent: Address, child: Address, capabilityTypes: [Type])
     pub event RemovedLinkedAccount(parent: Address, child: Address)
@@ -295,7 +296,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource NFT : NFTPublic, NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
-        pub let linkedAccountAddress: Address
+        access(self) var parentAddress: Address
+        access(self) let linkedAccountAddress: Address
         /// The AuthAccount Capability for the linked account this NFT represents
         access(self) var authAccountCapability: Capability<&AuthAccount>
         /// Capability for the relevant Handler
@@ -315,6 +317,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     "Addresses among both Capabilities do not match!"
             }
             self.id = self.uuid
+            self.parentAddress = handlerCap.borrow()!.getParentAddress()
             self.linkedAccountAddress = authAccountCap.borrow()!.address
             self.authAccountCapability = authAccountCap
             self.handlerCapability = handlerCap
@@ -422,7 +425,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         /// @return the address of the account that has been given delegated access
         ///
         pub fun getParentAccountAddress(): Address {
-            return self.getHandlerPublicRef().getParentAddress()
+            return self.parentAddress
         }
 
         /// Returns a reference to the Handler as HandlerPublic
@@ -445,6 +448,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     "Provided AuthAccount is not for this NFT's associated account Address!"
             }
             self.authAccountCapability = new
+            emit UpdatedAuthAccountCapabilityForLinkedAccount(id: self.id, parent: self.parentAddress, child: self.linkedAccountAddress)
         }
 
         /// Updates this NFT's AuthAccount Capability to another for the same account. Useful in the event the
@@ -452,14 +456,31 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         /// @param new: The new AuthAccount Capability, but must be for the same account as the current Capability
         ///
-        pub fun updateHandlerCapability(_ new: Capability<&Handler>) {
+        pub fun updateHandlerCapability(_ newCap: Capability<&Handler>) {
             pre {
-                new.check(): "Problem with provided Capability"
-                new.borrow()!.address == self.linkedAccountAddress &&
-                new.address == self.linkedAccountAddress:
+                newCap.check(): "Problem with provided Capability"
+                newCap.borrow()!.address == self.linkedAccountAddress &&
+                newCap.address == self.linkedAccountAddress:
                     "Provided AuthAccount is not for this NFT's associated account Address!"
             }
-            self.handlerCapability = new
+            self.handlerCapability = newCap
+        }
+
+        /// Updates this NFT's parent address & the parent address of the associated Handler
+        ///
+        /// @param newAddress: The address of the new parent account
+        ///
+        access(contract) fun updateParentAddress(_ newAddress: Address) {
+            // Check if new parent address differs from current
+            if newAddress != self.parentAddress {
+                // Get the existing parent address
+                let previousParent: Address = self.parentAddress
+                // Reassign to new address
+                self.parentAddress = newAddress
+                // Update in Handler as well & emit
+                self.getHandlerRef().updateParentAddress(newAddress)
+                emit UpdatedLinkedAccountParentAddress(previousParent: previousParent, newParent: newAddress, child: self.linkedAccountAddress)
+            }
         }
     }
 
@@ -597,16 +618,10 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
             // Assign scoped variables from LinkedAccounts.NFT
             let token <- token as! @LinkedAccounts.NFT
-            let ownerAddress = self.owner!.address
-            let linkedAccountAddress: Address = token.getAuthAcctRef().address
+            let ownerAddress: Address = self.owner!.address
+            let linkedAccountAddress: Address = token.getChildAccountAddress()
             let id: UInt64 = token.id
-            let handlerRef: &Handler = token.getHandlerRef()
-            
-            // Ensure associated Handler address matches the linked account address
-            assert(
-                handlerRef.address == linkedAccountAddress,
-                message: "LinkedAccount.NFT assocaited Handler address & AuthAccount addresses do not match!"
-            )
+
             // Ensure this Collection has not already been granted delegated access to the given account
             assert(
                 !self.addressToID.containsKey(linkedAccountAddress),
@@ -614,20 +629,27 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             )
 
             // Update the Handler's parentAddress if needed
-            let oldParentAddress = handlerRef.getParentAddress()
-            if oldParentAddress != ownerAddress {
-                handlerRef.updateParentAddress(ownerAddress)
-                emit UpdatedLinkedAccountParentAddress(oldParent: oldParentAddress, newParent: ownerAddress, child: linkedAccountAddress)
-            }
+            token.updateParentAddress(ownerAddress)
 
-            // Add the new token to the dictionary which removes the old one
+            // Add the new token to the ownedNFTs & addressToID mappings
             let oldToken <- self.ownedNFTs[id] <- token
+            self.addressToID.insert(key: linkedAccountAddress, id)
+            destroy oldToken
+
+            // Ensure both sides of account link have been properly labeled in the deposited NFT
+            let depositedNFTRef: &NFT = self.borrowLinkedAccountNFT(address: linkedAccountAddress)!
+            assert(
+                depositedNFTRef.getParentAccountAddress() == self.owner!.address,
+                message: "Problem assigning parent/child addresses to NFT while depositing!"
+            )
+            assert(
+                self.addressToID[linkedAccountAddress] == id,
+                message: "Problem associating LinkedAccounts.NFT account Address to NFT.id"
+            )
 
             // Emit events
             emit Deposit(id: id, to: ownerAddress)
             emit AddedLinkedAccount(parent: ownerAddress, child: linkedAccountAddress, nftID: id)
-
-            destroy oldToken
         }
         
         /// Withdraws the LinkedAccounts.NFT with the given id as a NonFungibleToken.NFT, emitting standard Withdraw
@@ -795,17 +817,17 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             // Get a &AuthAccount reference from the the given AuthAccount Capability
             let linkedAccountRef: &AuthAccount = linkedAccountCap.borrow()!
             // Assign parent & child address to identify sides of the link
-            let childAddress = linkedAccountRef.address
-            let parentAddress = self.owner!.address
+            let childAddress: Address = linkedAccountRef.address
+            let parentAddress: Address = self.owner!.address
 
             /** --- Path construction & validation --- */
             //
             // Construct paths for the Handler & its Capabilities
-            let handlerStoragePath = StoragePath(identifier: handlerPathSuffix)
+            let handlerStoragePath: StoragePath = StoragePath(identifier: handlerPathSuffix)
                 ?? panic("Could not construct StoragePath for Handler with given suffix")
-            let handlerPublicPath = PublicPath(identifier: handlerPathSuffix)
+            let handlerPublicPath: PublicPath = PublicPath(identifier: handlerPathSuffix)
                 ?? panic("Could not construct PublicPath for Handler with given suffix")
-            let handlerPrivatePath = PrivatePath(identifier: handlerPathSuffix)
+            let handlerPrivatePath: PrivatePath = PrivatePath(identifier: handlerPathSuffix)
                 ?? panic("Could not construct PrivatePath for Handler with given suffix")
             // Ensure nothing saved at expected paths
             assert(
@@ -824,7 +846,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             /** --- Configure newly linked account with Handler & get Capability --- */
             //
             // Create a Handler
-            let handler <-create Handler(
+            let handler: @LinkedAccounts.Handler <-create Handler(
                     parentAddress: parentAddress,
                     address: childAddress,
                     metadata: linkedAccountMetadata,
@@ -843,7 +865,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 target: handlerStoragePath
             )
             // Get a Capability to the linked Handler Cap in linked account's private storage
-            let handlerCap = linkedAccountRef.getCapability<&Handler>(
+            let handlerCap: Capability<&LinkedAccounts.Handler> = linkedAccountRef.getCapability<&Handler>(
                     handlerPrivatePath
                 )
             // Ensure the capability is valid before inserting it in collection's linkedAccounts mapping
