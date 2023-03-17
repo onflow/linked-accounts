@@ -158,6 +158,18 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
         }
 
+        pub fun getAddress(): Address {
+            pre {
+                self.owner != nil:
+                    "This Handler does not currently reside within an account!"
+            }
+            post {
+                result == self.owner!.address:
+                    "This Handler is not located in the correct linked account!"
+            }
+            return self.address
+        }
+
         /// Returns the Address of this linked account's parent Collection
         ///
         pub fun getParentAddress(): Address {
@@ -168,6 +180,12 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun getAccountMetadata(): AnyStruct{LinkedAccountMetadataViews.AccountMetadata} {
             return self.metadata
+        }
+
+        /// Returns the optional resolver contained within this Handler
+        ///
+        pub fun getResolver(): AnyStruct{LinkedAccountMetadataViews.MetadataResolver}? {
+            return self.resolver
         }
 
         /// Returns the types of Capabilities this Handler has been granted
@@ -277,8 +295,9 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource NFT : NFTPublic, NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
+        pub let linkedAccountAddress: Address
         /// The AuthAccount Capability for the linked account this NFT represents
-        access(self) let authAccountCapability: Capability<&AuthAccount>
+        access(self) var authAccountCapability: Capability<&AuthAccount>
         /// Capability for the relevant Handler
         access(self) var handlerCapability: Capability<&Handler>
 
@@ -286,7 +305,17 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             authAccountCap: Capability<&AuthAccount>,
             handlerCap: Capability<&Handler>
         ) {
+            pre {
+                authAccountCap.borrow() != nil:
+                    "Problem with provided AuthAccount Capabilithy"
+                handlerCap.borrow() != nil:
+                    "Problem with provided Handler Capabilithy"
+                authAccountCap.borrow()!.address == handlerCap.address &&
+                handlerCap.address == handlerCap.borrow()!.getAddress():
+                    "Addresses among both Capabilities do not match!"
+            }
             self.id = self.uuid
+            self.linkedAccountAddress = authAccountCap.borrow()!.address
             self.authAccountCapability = authAccountCap
             self.handlerCapability = handlerCap
         }
@@ -402,6 +431,35 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun getHandlerPublicRef(): &Handler{HandlerPublic} {
             return self.handlerCapability.borrow() ?? panic("Problem with Handler Capability in NFT!")
+        }
+
+        /// Updates this NFT's AuthAccount Capability to another for the same account. Useful in the event the
+        /// Capability needs to be retargeted
+        ///
+        /// @param new: The new AuthAccount Capability, but must be for the same account as the current Capability
+        ///
+        pub fun updateAuthAccountCapability(_ new: Capability<&AuthAccount>) {
+            pre {
+                new.check(): "Problem with provided Capability"
+                new.borrow()!.address == self.linkedAccountAddress:
+                    "Provided AuthAccount is not for this NFT's associated account Address!"
+            }
+            self.authAccountCapability = new
+        }
+
+        /// Updates this NFT's AuthAccount Capability to another for the same account. Useful in the event the
+        /// Capability needs to be retargeted
+        ///
+        /// @param new: The new AuthAccount Capability, but must be for the same account as the current Capability
+        ///
+        pub fun updateHandlerCapability(_ new: Capability<&Handler>) {
+            pre {
+                new.check(): "Problem with provided Capability"
+                new.borrow()!.address == self.linkedAccountAddress &&
+                new.address == self.linkedAccountAddress:
+                    "Provided AuthAccount is not for this NFT's associated account Address!"
+            }
+            self.handlerCapability = new
         }
     }
 
