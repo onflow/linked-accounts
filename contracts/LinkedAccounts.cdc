@@ -441,13 +441,13 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         /// @param new: The new AuthAccount Capability, but must be for the same account as the current Capability
         ///
-        pub fun updateAuthAccountCapability(_ new: Capability<&AuthAccount>) {
+        pub fun updateAuthAccountCapability(_ newCap: Capability<&AuthAccount>) {
             pre {
-                new.check(): "Problem with provided Capability"
-                new.borrow()!.address == self.linkedAccountAddress:
+                newCap.check(): "Problem with provided Capability"
+                newCap.borrow()!.address == self.linkedAccountAddress:
                     "Provided AuthAccount is not for this NFT's associated account Address!"
             }
-            self.authAccountCapability = new
+            self.authAccountCapability = newCap
             emit UpdatedAuthAccountCapabilityForLinkedAccount(id: self.id, parent: self.parentAddress, child: self.linkedAccountAddress)
         }
 
@@ -622,13 +622,13 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             let linkedAccountAddress: Address = token.getChildAccountAddress()
             let id: UInt64 = token.id
 
-            // Ensure this Collection has not already been granted delegated access to the given account
+            // Ensure this Collection does not already have a LinkedAccounts.NFT for this token's account
             assert(
                 !self.addressToID.containsKey(linkedAccountAddress),
                 message: "Already have delegated access to account address: ".concat(linkedAccountAddress.toString())
             )
 
-            // Update the Handler's parentAddress if needed
+            // Update the NFT's parentAddress if needed
             token.updateParentAddress(ownerAddress)
 
             // Add the new token to the ownedNFTs & addressToID mappings
