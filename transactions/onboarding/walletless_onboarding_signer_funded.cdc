@@ -1,5 +1,3 @@
-#allowAccountLinking
-
 import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
 import FlowToken from "../../contracts/utility/FlowToken.cdc"
 import FungibleToken from "../../contracts/utility/FungibleToken.cdc"
