@@ -2,11 +2,8 @@
 
 > This repo is reflective of the design proposed in [this FLIP](https://github.com/onflow/flips/pull/72) and the contained implementation on the main branch will be updated to reflect common consensus on a contract standard for linked account management.
 
-<<<<<<< HEAD
-> :info: The working update branch for this Cadence suite's next iteration can be found [here](https://github.com/onflow/linked-accounts/tree/rename-refactor)
-=======
 > :warning: The working update branch for this Cadence suite's next iteration can be found [here](https://github.com/onflow/linked-accounts/tree/rename-refactor)
->>>>>>> 6f74d23 (Add working update branch to README)
+
 
 This repository contains the `ChildAccount` contracts along with supporting scripts & transactions related to linking accounts in support of a [walletless onboarding](https://flow.com/post/flow-blockchain-mainstream-adoption-easy-onboarding-wallets) and the [hybrid custody account model](https://forum.onflow.org/t/hybrid-custody/4016/15).
 
