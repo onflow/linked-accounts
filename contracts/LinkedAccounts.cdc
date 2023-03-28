@@ -14,10 +14,9 @@ import MetadataViews from "./utility/MetadataViews.cdc"
 import LinkedAccountMetadataViews from "./LinkedAccountMetadataViews.cdc"
 
 /// This contract establishes a standard set of resources representing linked account associations, enabling
-/// querying of either end of account links as well as management of linked accounts, the Capabilities they're
-/// granted, as well as addition/removal of new/existing account delegations. By leveraging this contract, a new sort
-/// of custody is unlocked - Hybrid Custody - enabling the mainstream-friendly walletless onboarding UX we're so
-/// excited about on Flow.
+/// querying of either end of account links as well as management of linked accounts. By leveraging this contract, a
+/// new sort of custody is unlocked - Hybrid Custody - enabling the mainstream-friendly walletless onboarding UX we're
+/// so excited about on Flow.
 ///
 /// By leveraging existing metadata standards, builders can easily query a Collection's linked accounts, their
 /// relevant metadata, etc. With implementation of the NFT standard, Collection owners can easily transfer delegation
@@ -74,8 +73,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         pub fun isCurrentlyActive(): Bool
     }
 
-    /// Identifies an account as a child account and maintains info about its parent & association as well as
-    /// Capabilities granted by its parent account's Collection
+    /// Identifies an account as a child account and maintains info about its parent
     ///
     pub resource Handler : HandlerPublic, MetadataViews.Resolver {
         /// Pointer to this account's parent account
@@ -99,7 +97,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             self.parentAddress = parentAddress
             self.address = address
             self.metadata = metadata
-            // self.grantedCapabilities = {}
             self.resolver = resolver
             self.isActive = true
         }

@@ -17,7 +17,7 @@ transaction(childAddress: Address) {
     }
 
     execute {
-        // Remove child account, revoking any granted Capabilities
+        // Remove child account
         self.collectionRef.removeLinkedAccount(withAddress: childAddress)
     }
 }
