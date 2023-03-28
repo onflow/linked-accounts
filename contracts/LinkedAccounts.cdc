@@ -56,8 +56,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     pub event AddedLinkedAccount(parent: Address, child: Address, nftID: UInt64)
     pub event UpdatedLinkedAccountParentAddress(previousParent: Address, newParent: Address, child: Address)
     pub event UpdatedAuthAccountCapabilityForLinkedAccount(id: UInt64, parent: Address, child: Address)
-    pub event LinkedAccountGrantedCapability(parent: Address, child: Address, capabilityType: Type)
-    pub event RevokedCapabilitiesFromLinkedAccount(parent: Address, child: Address, capabilityTypes: [Type])
     pub event RemovedLinkedAccount(parent: Address, child: Address)
     pub event CollectionCreated()
 
@@ -73,7 +71,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     //
     pub resource interface HandlerPublic {
         pub fun getParentAddress(): Address
-        pub fun getGrantedCapabilityTypes(): [Type]
         pub fun isCurrentlyActive(): Bool
     }
 
@@ -90,8 +87,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         access(contract) let metadata: AnyStruct{LinkedAccountMetadataViews.AccountMetadata}
         /// Resolver struct to increase the flexibility, allowing implementers to resolve their own structs
         access(contract) let resolver: AnyStruct{LinkedAccountMetadataViews.MetadataResolver}?
-        /// Capabilities that have been granted by the parent account
-        access(contract) let grantedCapabilities: {Type: Capability}
         /// Flag denoting whether link to parent is still active
         access(contract) var isActive: Bool
 
@@ -104,7 +99,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             self.parentAddress = parentAddress
             self.address = address
             self.metadata = metadata
-            self.grantedCapabilities = {}
+            // self.grantedCapabilities = {}
             self.resolver = resolver
             self.isActive = true
         }
@@ -188,15 +183,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         pub fun getResolver(): AnyStruct{LinkedAccountMetadataViews.MetadataResolver}? {
             return self.resolver
         }
-
-        /// Returns the types of Capabilities this Handler has been granted
-        ///
-        /// @return An array of the Types of Capabilities this resource has access to in its grantedCapabilities
-        ///         mapping
-        ///
-        pub fun getGrantedCapabilityTypes(): [Type] {
-            return self.grantedCapabilities.keys
-        }
         
         /// Returns whether the link between this Handler and its associated Collection is still active - in
         /// practice whether the linked Collection has removed this Handler's Capability
@@ -205,69 +191,12 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return self.isActive
         }
 
-        /// Retrieves a granted Capability as a reference or nil if it does not exist.
-        /// 
-        //  **Note**: This is a temporary solution for Capability auditing & easy revocation 
-        /// their way to Cadence, enabling a parent account to issue, audit and easily revoke Capabilities to linked
-        /// accounts.
-        /// 
-        /// @param type: The Type of Capability being requested
-        ///
-        /// @return A reference to the Capability or nil if a Capability of given Type is not
-        ///         available
-        ///
-        pub fun getGrantedCapabilityAsRef(_ type: Type): &Capability? {
-            pre {
-                self.isActive: "LinkedAccounts.Handler has been de-permissioned by parent!"
-            }
-            return &self.grantedCapabilities[type] as &Capability?
-        }
-
         /// Updates this Handler's parentAddress, occurring whenever a corresponding NFT transfer occurs
         ///
         /// @param newAddress: The Address of the new parent account
         ///
         access(contract) fun updateParentAddress(_ newAddress: Address) {
             self.parentAddress = newAddress
-        }
-
-        /// Inserts the given Capability into this Handler's grantedCapabilities mapping.
-        ///
-        /// @param cap: The Capability being granted
-        ///
-        access(contract) fun grantCapability(_ cap: Capability) {
-            pre {
-                !self.grantedCapabilities.containsKey(cap.getType()):
-                    "Already granted Capability of given type!"
-            }
-            self.grantedCapabilities.insert(key: cap.getType(), cap)
-        }
-
-        /// Removes the Capability of given Type from this Handler's grantedCapabilities mapping.
-        ///
-        /// @param type: The Type of Capability to be removed
-        ///
-        /// @return the removed Capability or nil if it did not exist
-        ///
-        access(contract) fun revokeCapabilities(_ types: [Type]): [Type] {
-            // return self.grantedCapabilities.remove(key: type)
-            let removedTypes: [Type] = []
-            for capType in types {
-                if let removed = self.grantedCapabilities.remove(key: capType) {
-                    removedTypes.append(removed.getType())
-                }
-            }
-            return removedTypes
-        }
-
-        /// Removes all granted Capabilities from this Handler's grantedCapabilities mapping. Helpful when removing
-        /// a Handler association from a Collection (AKA unlinking an account) as well as limiting the number of events
-        /// emitted compared to revoking one-by-one.
-        ///
-        /// @return An array containing the types of all Capabilities removed
-        ///
-        access(contract) fun revokeAllCapabilities(): [Type] {
-            return self.revokeCapabilities(self.grantedCapabilities.keys)
         }
 
         /// Sets the isActive Bool flag to false
@@ -309,9 +238,9 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ) {
             pre {
                 authAccountCap.borrow() != nil:
-                    "Problem with provided AuthAccount Capabilithy"
+                    "Problem with provided AuthAccount Capability"
                 handlerCap.borrow() != nil:
-                    "Problem with provided Handler Capabilithy"
+                    "Problem with provided Handler Capability"
                 authAccountCap.borrow()!.address == handlerCap.address &&
                 handlerCap.address == handlerCap.borrow()!.getAddress():
                     "Addresses among both Capabilities do not match!"
@@ -884,56 +813,14 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             self.deposit(token: <-nft)
         }
 
-        /// Adds the given Capability to the Handler at the provided Address
-        ///
-        /// @param to: Address which is the key for the Handler Cap
-        /// @param cap: Capability to be added to the Handler
-        ///
-        pub fun addCapability(to: Address, _ cap: Capability) {
-            pre {
-                self.addressToID.containsKey(to):
-                    "No linked account NFT with given Address!"
-            }
-            // Get ref to handler
-            let handlerRef = self.getHandlerRef(
-                    address: to
-                ) ?? panic("Problem with Handler Capability for given address: ".concat(to.toString()))
-            let capType: Type = cap.getType()
-            
-            // Pass the Capability to the linked account via the handler & emit
-            handlerRef.grantCapability(cap)
-            emit LinkedAccountGrantedCapability(parent: self.owner!.address, child: to, capabilityType: capType)
-        }
-
-        /// Removes the capability of the given type from the Handler with the given Address
-        ///
-        /// @param from: Address indexing the Handler Capability
-        /// @param type: The Type of Capability to be removed from the Handler
-        ///
-        pub fun removeCapabilities(from: Address, types: [Type]): [Type] {
-            pre {
-                self.addressToID.containsKey(from):
-                    "No linked account with given Address!"
-            }
-            // Get ref to handler and remove
-            let handlerRef: &LinkedAccounts.Handler = self.getHandlerRef(
-                    address: from
-                ) ?? panic("Problem with Handler Capability for given address: ".concat(from.toString()))
-            // Revoke Capability & emit
-            let removedTypes: [Type] = handlerRef.revokeCapabilities(types)
-            emit RevokedCapabilitiesFromLinkedAccount(parent: self.owner!.address, child: from, capabilityTypes: types)
-            return removedTypes
-        }
-
-        /// Remove Handler, returning its Address if it exists.
+        /// Remove NFT associated with given Address, effectively removing delegated access to the specified account
+        /// by removal of the NFT from this Collection
         /// Note, removing a Handler does not revoke key access linked account if it has been added. This should be
         /// done in the same transaction in which this method is called.
         ///
         /// @param withAddress: The Address of the linked account to remove from the mapping
         ///
-        /// @return the Address of the account removed or nil if it wasn't linked to begin with
-        ///
-        pub fun removeLinkedAccount(withAddress: Address): [Type] {
+        pub fun removeLinkedAccount(withAddress: Address) {
             pre {
                 self.addressToID.containsKey(withAddress):
                     "This Collection does not have NFT with given Address: ".concat(withAddress.toString())
@@ -946,13 +833,10 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             let handlerRef: &LinkedAccounts.Handler = nft.getHandlerRef()
             // Set the handler as inactive
             handlerRef.setInactive()
-            // Remove all capabilities from the Handler
-            let removedCapTypes: [Type] = handlerRef.revokeAllCapabilities()
 
             // Emit RemovedLinkedAccount & destroy NFT
             emit RemovedLinkedAccount(parent: self.owner!.address, child: withAddress)
             destroy nft
-            return removedCapTypes
         }
 
         destroy () {
