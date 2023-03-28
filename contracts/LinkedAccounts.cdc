@@ -22,11 +22,10 @@ import LinkedAccountMetadataViews from "./LinkedAccountMetadataViews.cdc"
 /// relevant metadata, etc. With implementation of the NFT standard, Collection owners can easily transfer delegation
 /// they wish in a mental model that's familiar and easy to understand.
 ///
-/// The Collection allows a main account to add linked accounts, and An account is deemed a child of a
+/// The Collection allows a main account to add linked accounts, and an account is deemed a child of a
 /// parent if the parent maintains delegated access on the child account by way of AuthAccount
-/// Capability wrapped in an NFT and saved in a Collection. By
-/// the constructs defined in this contract, a linked account can be identified by a stored
-/// Handler.
+/// Capability wrapped in an NFT and saved in a Collection. By the constructs defined in this contract, a
+/// linked account can be identified by a stored Handler.
 ///
 /// While one generally would not want to share account access with other parties, this can be helpful in a low-stakes
 /// environment where the parent account's owner wants to delegate transaction signing to a secondary party. The idea 
@@ -53,7 +52,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     // LinkedAccounts Events
     pub event MintedNFT(id: UInt64, parent: Address, child: Address)
     pub event AddedLinkedAccount(parent: Address, child: Address, nftID: UInt64)
-    pub event UpdatedLinkedAccountParentAddress(previousParent: Address, newParent: Address, child: Address)
     pub event UpdatedAuthAccountCapabilityForLinkedAccount(id: UInt64, parent: Address, child: Address)
     pub event RemovedLinkedAccount(parent: Address, child: Address)
     pub event CollectionCreated()
@@ -78,8 +76,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     pub resource Handler : HandlerPublic, MetadataViews.Resolver {
         /// Pointer to this account's parent account
         access(contract) var parentAddress: Address
-        /// The address of the account where the ccountHandler resource resides
-        access(contract) let address: Address
         /// Metadata about the purpose of this child account guarantees standard minimum metadata is stored
         /// about linked accounts
         access(contract) let metadata: AnyStruct{LinkedAccountMetadataViews.AccountMetadata}
@@ -90,12 +86,11 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
 
         init(
             parentAddress: Address,
-            address: Address,
             metadata: AnyStruct{LinkedAccountMetadataViews.AccountMetadata},
             resolver: AnyStruct{LinkedAccountMetadataViews.MetadataResolver}?
         ) {
             self.parentAddress = parentAddress
-            self.address = address
+            // self.address = address
             self.metadata = metadata
             self.resolver = resolver
             self.isActive = true
@@ -151,18 +146,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             }
         }
 
-        pub fun getAddress(): Address {
-            pre {
-                self.owner != nil:
-                    "This Handler does not currently reside within an account!"
-            }
-            post {
-                result == self.owner!.address:
-                    "This Handler is not located in the correct linked account!"
-            }
-            return self.address
-        }
-
         /// Returns the Address of this linked account's parent Collection
         ///
         pub fun getParentAddress(): Address {
@@ -213,7 +196,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         pub fun checkAuthAccountCapability(): Bool
         pub fun checkHandlerCapability(): Bool
         pub fun getChildAccountAddress(): Address
-        pub fun getParentAccountAddress(): Address
+        // pub fun getParentAccountAddress(): Address
         pub fun getHandlerPublicRef(): &Handler{HandlerPublic}
     }
 
@@ -222,7 +205,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     ///
     pub resource NFT : NFTPublic, NonFungibleToken.INFT, MetadataViews.Resolver {
         pub let id: UInt64
-        access(self) var parentAddress: Address
+        /// The address of the associated linked account
         access(self) let linkedAccountAddress: Address
         /// The AuthAccount Capability for the linked account this NFT represents
         access(self) var authAccountCapability: Capability<&AuthAccount>
@@ -238,12 +221,13 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     "Problem with provided AuthAccount Capability"
                 handlerCap.borrow() != nil:
                     "Problem with provided Handler Capability"
+                handlerCap.borrow()!.owner != nil:
+                    "Associated Handler does not have an owner!"
                 authAccountCap.borrow()!.address == handlerCap.address &&
-                handlerCap.address == handlerCap.borrow()!.getAddress():
-                    "Addresses among both Capabilities do not match!"
+                handlerCap.address == handlerCap.borrow()!.owner!.address:
+                    "Addresses among given Capabilities do not match!"
             }
             self.id = self.uuid
-            self.parentAddress = handlerCap.borrow()!.getParentAddress()
             self.linkedAccountAddress = authAccountCap.borrow()!.address
             self.authAccountCapability = authAccountCap
             self.handlerCapability = handlerCap
@@ -294,8 +278,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                         traits: MetadataViews.dictToTraits(
                                 dict: {
                                     "id": self.id,
-                                    "parentAddress": handlerRef.parentAddress,
-                                    "linkedAddress": handlerRef.address,
+                                    "parentAddress": self.owner?.address,
+                                    "linkedAddress": self.getChildAccountAddress(),
                                     "creationTimestamp": accountInfo.creationTimestamp
                                 },
                                 excludedNames: nil
@@ -346,14 +330,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return self.getAuthAcctRef().address
         }
 
-        /// Returns the address on the parent side of the account link
-        ///
-        /// @return the address of the account that has been given delegated access
-        ///
-        pub fun getParentAccountAddress(): Address {
-            return self.parentAddress
-        }
-
         /// Returns a reference to the Handler as HandlerPublic
         ///
         /// @return a reference to the Handler as HandlerPublic 
@@ -372,9 +348,11 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 newCap.check(): "Problem with provided Capability"
                 newCap.borrow()!.address == self.linkedAccountAddress:
                     "Provided AuthAccount is not for this NFT's associated account Address!"
+                self.owner != nil:
+                    "Cannot update AuthAccount Capability on unowned NFT!"
             }
             self.authAccountCapability = newCap
-            emit UpdatedAuthAccountCapabilityForLinkedAccount(id: self.id, parent: self.parentAddress, child: self.linkedAccountAddress)
+            emit UpdatedAuthAccountCapabilityForLinkedAccount(id: self.id, parent: self.owner!.address, child: self.linkedAccountAddress)
         }
 
         /// Updates this NFT's AuthAccount Capability to another for the same account. Useful in the event the
@@ -385,7 +363,9 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         pub fun updateHandlerCapability(_ newCap: Capability<&Handler>) {
             pre {
                 newCap.check(): "Problem with provided Capability"
-                newCap.borrow()!.address == self.linkedAccountAddress &&
+                newCap.borrow()!.owner != nil:
+                    "Associated Handler does not have an owner!"
+                newCap.borrow()!.owner!.address == self.linkedAccountAddress &&
                 newCap.address == self.linkedAccountAddress:
                     "Provided AuthAccount is not for this NFT's associated account Address!"
             }
@@ -397,16 +377,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         /// @param newAddress: The address of the new parent account
         ///
         access(contract) fun updateParentAddress(_ newAddress: Address) {
-            // Check if new parent address differs from current
-            if newAddress != self.parentAddress {
-                // Get the existing parent address
-                let previousParent: Address = self.parentAddress
-                // Reassign to new address
-                self.parentAddress = newAddress
-                // Update in Handler as well & emit
-                self.getHandlerRef().updateParentAddress(newAddress)
-                emit UpdatedLinkedAccountParentAddress(previousParent: previousParent, newParent: newAddress, child: self.linkedAccountAddress)
-            }
+            // Pass through to update the parent account in the associated Handler
+            self.getHandlerRef().updateParentAddress(newAddress)
         }
     }
 
@@ -554,7 +526,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                 message: "Already have delegated access to account address: ".concat(linkedAccountAddress.toString())
             )
 
-            // Update the NFT's parentAddress if needed
+            // Update the Handler's parent address
             token.updateParentAddress(ownerAddress)
 
             // Add the new token to the ownedNFTs & addressToID mappings
@@ -562,12 +534,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             self.addressToID.insert(key: linkedAccountAddress, id)
             destroy oldToken
 
-            // Ensure both sides of account link have been properly labeled in the deposited NFT
-            let depositedNFTRef: &NFT = self.borrowLinkedAccountNFT(address: linkedAccountAddress)!
-            assert(
-                depositedNFTRef.getParentAccountAddress() == self.owner!.address,
-                message: "Problem assigning parent/child addresses to NFT while depositing!"
-            )
+            // Ensure the NFT has its id associated to the correct linked address
             assert(
                 self.addressToID[linkedAccountAddress] == id,
                 message: "Problem associating LinkedAccounts.NFT account Address to NFT.id"
@@ -774,7 +741,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             // Create a Handler
             let handler: @LinkedAccounts.Handler <-create Handler(
                     parentAddress: parentAddress,
-                    address: childAddress,
                     metadata: linkedAccountMetadata,
                     resolver: linkedAccountMetadataResolver
                 )
