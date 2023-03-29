@@ -15,8 +15,8 @@ import LinkedAccountMetadataViews from "./LinkedAccountMetadataViews.cdc"
 
 /// This contract establishes a standard set of resources representing linked account associations, enabling
 /// querying of either end of account links as well as management of linked accounts. By leveraging this contract, a
-/// new sort of custody is unlocked - Hybrid Custody - enabling the mainstream-friendly walletless onboarding UX we're
-/// so excited about on Flow.
+/// new sort of custody is unlocked - Hybrid Custody - enabling the mainstream-friendly walletless onboarding UX on
+/// Flow.
 ///
 /// By leveraging existing metadata standards, builders can easily query a Collection's linked accounts, their
 /// relevant metadata, etc. With implementation of the NFT standard, Collection owners can easily transfer delegation
@@ -31,7 +31,7 @@ import LinkedAccountMetadataViews from "./LinkedAccountMetadataViews.cdc"
 /// environment where the parent account's owner wants to delegate transaction signing to a secondary party. The idea 
 /// for this setup was born out of pursuit of a more seamless on-chain gameplay UX where a user could let a game client
 /// submit transactions on their behalf without signing over the whole of their primary account, and do so in a way
-/// that didn't require custom a Capability.
+/// that didn't require a custom Capability.
 ///
 /// With that said, users should bear in mind that any assets in a linked account incur obvious custodial risk, and
 /// that it's generally an anti-pattern to pass around AuthAccounts. In this case, a user owns both accounts so they
@@ -51,9 +51,9 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     
     // LinkedAccounts Events
     pub event MintedNFT(id: UInt64, parent: Address, child: Address)
-    pub event AddedLinkedAccount(parent: Address, child: Address, nftID: UInt64)
+    pub event AddedLinkedAccount(child: Address, parent: Address, nftID: UInt64)
     pub event UpdatedAuthAccountCapabilityForLinkedAccount(id: UInt64, parent: Address, child: Address)
-    pub event RemovedLinkedAccount(parent: Address, child: Address)
+    pub event RemovedLinkedAccount(child: Address, parent: Address)
     pub event CollectionCreated()
 
     // Canonical paths
@@ -296,7 +296,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
 
         /// Get a reference to the child AuthAccount object.
         ///
-        pub fun getAuthAcctRef(): &AuthAccount {
+        pub fun borrowAuthAcccount(): &AuthAccount {
             return self.authAccountCapability.borrow() ?? panic("Problem with AuthAccount Capability in NFT!")
         }
 
@@ -327,7 +327,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         /// @return the address of the account this NFT has delegated access to
         ///
         pub fun getChildAccountAddress(): Address {
-            return self.getAuthAcctRef().address
+            return self.borrowAuthAcccount().address
         }
 
         /// Returns a reference to the Handler as HandlerPublic
@@ -392,6 +392,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         pub fun getAddressToID(): {Address: UInt64}
         pub fun getLinkedAccountAddresses(): [Address]
         pub fun getIDOfNFTByAddress(address: Address): UInt64?
+        pub fun deposit(token: @NonFungibleToken.NFT)
         pub fun getIDs(): [UInt64]
         pub fun isLinkActive(onAddress: Address): Bool
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
@@ -422,7 +423,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         /// Mapping of contained LinkedAccount.NFTs as NonFungibleToken.NFTs
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
         /// Mapping linked account Address to relevant NFT.id
-        pub let addressToID: {Address: UInt64}
+        access(self) let addressToID: {Address: UInt64}
         /// Mapping of pending addresses which can be deposited
         pub let pendingDeposits: {Address: Bool}
 
@@ -567,7 +568,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
 
             // Emit events
             emit Deposit(id: id, to: ownerAddress)
-            emit AddedLinkedAccount(parent: ownerAddress, child: linkedAccountAddress, nftID: id)
+            emit AddedLinkedAccount(child: linkedAccountAddress, parent: ownerAddress, nftID: id)
         }
         
         /// Withdraws the LinkedAccounts.NFT with the given id as a NonFungibleToken.NFT, emitting standard Withdraw
@@ -603,7 +604,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
 
             // Emit events & return
             emit Withdraw(id: token.id, from: self.owner?.address)
-            emit RemovedLinkedAccount(parent: self.owner!.address, child: childAddress)
+            emit RemovedLinkedAccount(child: childAddress, parent: self.owner!.address)
             return <-token
         }
 
@@ -689,7 +690,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun getChildAccountRef(address: Address): &AuthAccount? {
             if let ref = self.borrowLinkedAccountNFT(address: address) {
-                return ref.getAuthAcctRef()
+                return ref.borrowAuthAcccount()
             }
             return nil
         }
@@ -825,7 +826,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             handlerRef.setInactive()
 
             // Emit RemovedLinkedAccount & destroy NFT
-            emit RemovedLinkedAccount(parent: self.owner!.address, child: withAddress)
+            emit RemovedLinkedAccount(child: childAddress, parent: self.owner!.address)
             destroy nft
         }
 
@@ -844,7 +845,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
     /// active on the given account.
     ///
     /// @param publicKey: A public key as a string
-    /// @param address: The address of the 
+    /// @param address: The address of the account to query against
     ///
     /// @return True if the key is active on the account, false otherwise (including if the given public key string was
     /// invalid)
@@ -903,8 +904,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
                     publicPath: LinkedAccounts.CollectionPublicPath,
                     providerPath: LinkedAccounts.CollectionPrivatePath,
                     publicCollection: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(),
-                    publicLinkedType: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(),
-                    providerLinkedType: Type<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}>(),
+                    publicLinkedType: Type<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(),
+                    providerLinkedType: Type<&LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(),
                     createEmptyCollectionFunction: (fun (): @NonFungibleToken.Collection {
                         return <-LinkedAccounts.createEmptyCollection()
                     })

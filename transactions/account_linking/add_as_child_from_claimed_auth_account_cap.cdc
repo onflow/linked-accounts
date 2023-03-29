@@ -32,30 +32,28 @@ transaction(
         }
         // Link the public Capability
         if !signer.getCapability<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPublicPath).check() {
             signer.unlink(LinkedAccounts.CollectionPublicPath)
-            signer.link<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
+            signer.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
                 LinkedAccounts.CollectionPublicPath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
         // Link the private Capability
         if !signer.getCapability<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPrivatePath).check() {
             signer.unlink(LinkedAccounts.CollectionPrivatePath)
             signer.link<
-                &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, NonFungibleToken.CollectionPublic, NonFungibleToken.Receiver, NonFungibleToken.Provider, MetadataViews.ResolverCollection}
+                &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(
                 LinkedAccounts.CollectionPrivatePath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
         // Get Collection reference from signer
-        self.collectionRef = signer.borrow<
-                &LinkedAccounts.Collection
-            >(
+        self.collectionRef = signer.borrow<&LinkedAccounts.Collection>(
                 from: LinkedAccounts.CollectionStoragePath
             )!
         

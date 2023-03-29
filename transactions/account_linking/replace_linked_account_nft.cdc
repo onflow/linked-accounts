@@ -28,7 +28,7 @@ transaction(
         let nft: @LinkedAccounts.NFT <-collectionRef.withdrawByAddress(address: address) as! @LinkedAccounts.NFT
         
         // Get the linked account's AuthAccount reference
-        let linkedAccountRef: &AuthAccount = nft.getAuthAcctRef()
+        let linkedAccountRef: &AuthAccount = nft.borrowAuthAcccount()
         
         // Construct a PrivatePath for the new AuthAccount Capability link
         let newAuthAccountCapPath = PrivatePath(identifier: newAuthAccountCapPathSuffix)

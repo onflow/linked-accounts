@@ -57,9 +57,7 @@ pub fun getAllViewsFromAddress(_ address: Address): [NFTData] {
     account.forEachStored(fun (path: StoragePath, type: Type): Bool {
         // Check if it's a Collection we're interested in, if so, get a reference
         if type.isSubtype(of: collectionType) {
-            if let collectionRef = account.borrow<
-                &{NonFungibleToken.CollectionPublic, MetadataViews.ResolverCollection}
-            >(from: path) {
+            if let collectionRef = account.borrow<&{NonFungibleToken.CollectionPublic, MetadataViews.ResolverCollection}>(from: path) {
                 // Iterate over the Collection's NFTs, continuing if the NFT resolves the views we want
                 for id in collectionRef.getIDs() {
                     let resolverRef: &{MetadataViews.Resolver} = collectionRef.borrowViewResolver(id: id)

@@ -31,6 +31,12 @@ pub contract LinkedAccountMetadataViews {
             thumbnail: AnyStruct{MetadataViews.File},
             externalURL: MetadataViews.ExternalURL
         ) {
+            pre {
+                name.length < 32:
+                    "Provided name is too long - must be fewer than 32 characters!"
+                description.length < 128:
+                    "Provided description is too long - must be fewer than 128 characters!"
+            }
             self.name = name
             self.description = description
             self.creationTimestamp = getCurrentBlock().timestamp
