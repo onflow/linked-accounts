@@ -48,6 +48,8 @@ transaction(
         
         // Update the AuthAccount Capability
         nft.updateAuthAccountCapability(self.newAccountCap)
+        // register the new linked account address so it can be deposited
+        collectionRef.addPendingDeposit(address: self.newAccountCap.address)
         
         // Unlink old AuthAccount Capability if path suffix is specified
         if oldAuthAccountCapPathSuffix != nil {
