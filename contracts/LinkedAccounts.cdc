@@ -826,7 +826,7 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             handlerRef.setInactive()
 
             // Emit RemovedLinkedAccount & destroy NFT
-            emit RemovedLinkedAccount(child: childAddress, parent: self.owner!.address)
+            emit RemovedLinkedAccount(child: withAddress, parent: self.owner!.address)
             destroy nft
         }
 
