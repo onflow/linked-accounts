@@ -31,9 +31,7 @@ pub fun main(address: Address, balancePath: PublicPath): {Address: UFix64} {
     /* Iterate over any linked accounts */ 
     //
     // Get reference to LinkedAccounts.Collection if it exists
-    if let collectionRef = getAccount(address).getCapability<
-            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}
-        >(
+    if let collectionRef = getAccount(address).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         // Iterate over each linked account in Collection

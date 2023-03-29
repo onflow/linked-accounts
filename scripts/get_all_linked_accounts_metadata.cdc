@@ -34,9 +34,7 @@ pub fun main(address: Address): {Address: LinkedAccountData} {
     let linkedAccountData: {Address: LinkedAccountData} = {}
 
     // Get reference to LinkedAccounts.Collection if it exists
-    if let collectionRef = getAccount(address).getCapability<
-            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
-        >(
+    if let collectionRef = getAccount(address).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         let addressToID: {Address: UInt64}  = collectionRef.getAddressToID()

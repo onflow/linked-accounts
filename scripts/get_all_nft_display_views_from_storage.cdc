@@ -106,9 +106,7 @@ pub fun main(address: Address): {Address: [NFTData]} {
     /* Iterate over any child accounts */ 
     //
     // Get reference to LinkedAccounts.Collection if it exists
-    if let collectionRef = getAccount(address).getCapability<
-            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}
-        >(
+    if let collectionRef = getAccount(address).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         // Iterate over each linked account in LinkedAccounts.Collection

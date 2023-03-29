@@ -6,9 +6,9 @@ import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 pub fun main(parent: Address, child: Address): Bool {
 
     // Get a reference to the LinkedAccounts.Collection in parent's account
-    if let collectionRef = getAccount(parent).getCapability<
-            &LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}
-        >(LinkedAccounts.CollectionPublicPath).borrow() {
+    if let collectionRef = getAccount(parent).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(
+            LinkedAccounts.CollectionPublicPath
+        ).borrow() {
         // Check if the link is active between accounts
         collectionRef.isLinkActive(onAddress: child)
     }
