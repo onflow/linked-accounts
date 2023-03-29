@@ -423,10 +423,13 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
         pub var ownedNFTs: @{UInt64: NonFungibleToken.NFT}
         /// Mapping linked account Address to relevant NFT.id
         pub let addressToID: {Address: UInt64}
+        /// Mapping of pending addresses which can be deposited
+        pub let pendingDeposits: {Address: Bool}
 
         init() {
             self.ownedNFTs <-{}
             self.addressToID = {}
+            self.pendingDeposits = {}
         }
 
         /// Returns the NFT as a Resolver for the specified ID
@@ -501,6 +504,24 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             return false
         }
 
+        /// Takes an address and adds it to pendingDeposits which allows it to be deposited.
+        /// If the child account address of the token deposited is not in this dictionary at the time
+        /// of deposit, it will panic.
+        ///
+        /// @param address: The address which should be permitted to be inserted as a child account
+        ///
+        pub fun addPendingDeposit(address: Address) {
+            self.pendingDeposits.insert(key: address, true)
+        }
+
+        /// Takes an address and removes it from pendingDeposits, no longer permitting
+        /// child accounts for the specified address to be inserted
+        ///
+        /// @param address: The address which should no longer be permitted to be inserted as a child account
+        pub fun removePendingDeposit(address: Address) {
+            self.pendingDeposits.remove(key: address)
+        }
+
         /// Takes a given NonFungibleToken.NFT and adds it to this Collection's mapping of ownedNFTs, emitting both
         /// Deposit and AddedLinkedAccount since depositing LinkedAccounts.NFT is effectively giving a Collection owner
         /// delegated access to an account
@@ -519,6 +540,10 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             let ownerAddress: Address = self.owner!.address
             let linkedAccountAddress: Address = token.getChildAccountAddress()
             let id: UInt64 = token.id
+
+            // Ensure this collection allows the address of the child account to be added
+            assert(self.pendingDeposits.containsKey(linkedAccountAddress), message: "address of deposited token is not permitted to be added")
+            self.removePendingDeposit(address: linkedAccountAddress)
 
             // Ensure this Collection does not already have a LinkedAccounts.NFT for this token's account
             assert(
@@ -711,6 +736,8 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             let linkedAccountRef: &AuthAccount = linkedAccountCap.borrow()!
             // Assign parent & child address to identify sides of the link
             let childAddress: Address = linkedAccountRef.address
+            // register this address as being permitted to be linked
+            self.addPendingDeposit(address: childAddress)
             let parentAddress: Address = self.owner!.address
 
             /** --- Path construction & validation --- */
