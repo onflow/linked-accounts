@@ -153,7 +153,7 @@ pub contract ScopedAccounts {
         self.AccessPointStoragePath = /storage/ScopedAccountsAccessPoint
         self.AccessPointPublicPath = /public/ScopedAccountsAccessPoint
         self.AccessPointPrivatePath = /private/ScopedAccountsAccessPoint
-        self.AccessorStoragePath = /storage/ScopedAccountAccessor
+        self.AccessorStoragePath = /storage/ScopedAccountsAccessor
     }
 }
  
