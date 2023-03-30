@@ -10,9 +10,11 @@ pub contract ScopedAccounts {
 
     /* Canonical Paths */
     //
+    // AccessPoint
     pub let AccessPointStoragePath: StoragePath
     pub let AccessPointPublicPath: PublicPath
     pub let AccessPointPrivatePath: PrivatePath
+    pub let AccessorStoragePath: StoragePath
 
     /* Events */
     //
@@ -95,6 +97,38 @@ pub contract ScopedAccounts {
         }
     }
 
+    /* --- Accessor --- */
+    //
+    /// Wrapper for the AccessPoint Capability
+    ///
+    pub resource Accessor {
+        /// Capability to an AccessPoint
+        access(self) var accessPointCapability: Capability<&AccessPoint>
+        
+        init(accessPointCapability: Capability<&AccessPoint>) {
+            self.accessPointCapability = accessPointCapability
+        }
+
+        /// Simple getter for the stored AccessPoint Capability
+        ///
+        pub fun getAccessPointCapability(): Capability<&AccessPoint> {
+            return self.accessPointCapability
+        }
+
+        /// Allows caller to retrieve reference to the AccessPoint for which a Capability is stored
+        ///
+        pub fun borrowAccessPoint(): &AccessPoint {
+            return self.accessPointCapability.borrow()
+                ?? panic("Problem borrowing AccessPoint reference!")
+        }
+
+        /// Enables caller to swap the stored AccessPoint Capability for another
+        ///
+        pub fun swapAccessPointCapability(_ new: Capability<&AccessPoint>) {
+            self.accessPointCapability = new
+        }
+    }
+
     /// Creates a new AccessPoint resource
     ///
     pub fun createAccessPoint(
@@ -110,10 +144,16 @@ pub contract ScopedAccounts {
         emit AccessPointCreated(id: accessPoint.getID(), address: authAccountCapability.borrow()!.address, allowedCapabilityTypes: allowedCapabilities.keys)
         return <-accessPoint
     }
+
+    pub fun createAccessor(accessPointCapability: Capability<&AccessPoint>): @Accessor {
+        return <-create Accessor(accessPointCapability: accessPointCapability)
+    }
     
     init() {
         self.AccessPointStoragePath = /storage/ScopedAccountsAccessPoint
         self.AccessPointPublicPath = /public/ScopedAccountsAccessPoint
         self.AccessPointPrivatePath = /private/ScopedAccountsAccessPoint
+        self.AccessorStoragePath = /storage/ScopedAccountAccessor
     }
 }
+ 

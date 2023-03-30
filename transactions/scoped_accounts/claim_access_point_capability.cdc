@@ -3,11 +3,7 @@ import ScopedAccounts from "../../contracts/ScopedAccounts.cdc"
 
 /// Claims an AccessPoint Capability from the given provider, storing it at the specified StoragePath
 ///
-transaction(
-    capabilityName: String,
-    capabilityProvider: Address,
-    capabilityStoragePathIdentifier: String
-    ) {
+transaction(capabilityName: String,capabilityProvider: Address) {
 
     prepare(signer: AuthAccount) {
         // Claim the Capability
@@ -15,10 +11,11 @@ transaction(
                 capabilityName,
                 provider: capabilityProvider
             ) ?? panic("No AccessPoint Capability available from provider with given name!")
-        // Construct the StoragePath where we'll store the Capability
-        let capabilityStoragePath: StoragePath = StoragePath(identifier: capabilityStoragePathIdentifier)
-            ?? panic("Could not construct Storage path from given identifier: ".concat(capabilityStoragePathIdentifier))
         // Store the AccessPoint Capability
-        signer.save(accessPointCap, to: capabilityStoragePath)
+        signer.save(
+            <-ScopedAccounts.createAccessor(accessPointCapability: accessPointCap),
+            to: ScopedAccounts.AccessorStoragePath
+        )
     }
 }
+ 
