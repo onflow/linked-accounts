@@ -64,14 +64,21 @@ pub contract ScopedAccounts {
             return self.id
         }
 
+        /// Returns the mapping to allowed Capabilty Types and corresponding paths
+        ///
         pub fun getAllowedCapabilities(): {Type: CapabilityPath} {
             return self.allowedCapabilities
         }
 
+        /// Retrieves the address for which this AccessPoint maintains an AuthAccount Capability for
+        ///
         pub fun getScopedAccountAddress(): Address {
             return self.borrowAuthAccount().address
         }
 
+        /// Returns a generic Capability of specified Type from its corresponding path stored in allowedCapabilities
+        /// mapping. The type is enforced by the stored CapabilityValidator assigned in init.
+        ///
         pub fun getCapabilityByType(_ type: Type): Capability? {
             if self.allowedCapabilities.containsKey(type) {
                 let account: &AuthAccount = self.borrowAuthAccount()
@@ -92,6 +99,8 @@ pub contract ScopedAccounts {
         // pub fun getViews(): [Type]
         // pub fun resolveView(_ view: Type): AnyStruct?
 
+        /// Helper method to return a reference the associated AuthAccount
+        ///
         access(self) fun borrowAuthAccount(): &AuthAccount {
             return self.authAccountCapability.borrow() ?? panic("Problem with AuthAccount Capability")
         }
@@ -102,6 +111,7 @@ pub contract ScopedAccounts {
     /// Wrapper for the AccessPoint Capability
     ///
     pub resource Accessor {
+
         /// Capability to an AccessPoint
         access(self) var accessPointCapability: Capability<&AccessPoint>
         
@@ -145,6 +155,8 @@ pub contract ScopedAccounts {
         return <-accessPoint
     }
 
+    /// Creates a new Accessor resource, wrapping the provided AccessPoint Capability
+    ///
     pub fun createAccessor(accessPointCapability: Capability<&AccessPoint>): @Accessor {
         return <-create Accessor(accessPointCapability: accessPointCapability)
     }
