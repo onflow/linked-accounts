@@ -1,16 +1,25 @@
+import NonFungibleToken from "./utility/NonFungibleToken.cdc"
+import MetadataViews from "./utility/MetadataViews.cdc"
 import ScopedAccounts from "./ScopedAccounts.cdc"
 
+/// A contract containing example ScopedAccounts.CapabilityValidator implementations
+///
 pub contract ExampleValidators {
 
+    /// An example Validator. Implementers would likely want to further restrict the expected types on a specific
+    /// Collection implementation (e.g. &ExampleNFT.Collection{NonFungibleToken.Provider})
     pub struct interface NFTCollectionValidator : ScopedAccounts.CapabilityValidator {
         pub fun validate(expectedType: Type, capability: Capability): Bool {
             switch expectedType {
-                case Type<&NonFungibleToken.Collection{NonFungibleToken.Collection}>():
-                    if let ref = capability.borrow<&NonFungibleToken.Collection{NonFungibleToken.CollectionPublic}>() {
-                        return true
-                    }
+                case Type<&{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>():
+                    return capability.borrow<{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, MetadataViews.ResolverCollection}>() != nil
+                case Type<&{NonFungibleToken.Provider}>():
+                    return capability.borrow<&{NonFungibleToken.Provider}>() != nil
+                case Type<&{MetadataViews.ResolverCollection}>():
+                    return capability.borrow<&{MetadataViews.ResolverCollection}>() != nil
+                default:
+                    return false
             }
-            return false
         }
     }
 }
