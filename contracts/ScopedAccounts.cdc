@@ -13,6 +13,10 @@ pub contract ScopedAccounts {
     pub let AccessPointStoragePath: StoragePath
     pub let AccessPointPrivatePath: PrivatePath
 
+    /* Events */
+    //
+    pub event AccessPointCreated(id: UInt64, address: Address, allowedCapabilityTypes: [Type])
+
     /* --- CapabilityValidator --- */
     //
     /// An interface defining a struct that validates that a given generic Capability returns a reference of the 
@@ -44,6 +48,9 @@ pub contract ScopedAccounts {
             allowedCapabilities: {Type: CapabilityPath},
             validator: AnyStruct{CapabilityValidator}
         ) {
+            pre {
+                authAccountCapability.check(): "Problem with provided AuthAccount Capability"
+            }
             self.id = self.uuid
             self.authAccountCapability = authAccountCapability
             self.allowedCapabilities = allowedCapabilities
@@ -94,11 +101,13 @@ pub contract ScopedAccounts {
         allowedCapabilities: {Type: CapabilityPath},
         validator: AnyStruct{CapabilityValidator}
     ): @AccessPoint {
-        return <-create AccessPoint(
+        let accessPoint <-create AccessPoint(
             authAccountCapability: authAccountCapability,
             allowedCapabilities: allowedCapabilities,
             validator: validator
         )
+        emit AccessPointCreated(id: accessPoint.getID(), address: authAccountCapability.borrow()!.address, allowedCapabilityTypes: allowedCapabilities.keys)
+        return <-accessPoint
     }
     
     init() {
