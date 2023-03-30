@@ -34,32 +34,28 @@ transaction(
             )
         }
         // Link the public Capability
-        if !signer.getCapability<
+        if !parent.getCapability<
                 &LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPublicPath).check() {
-            signer.unlink(LinkedAccounts.CollectionPublicPath)
-            signer.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
+            parent.unlink(LinkedAccounts.CollectionPublicPath)
+            parent.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
                 LinkedAccounts.CollectionPublicPath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
         // Link the private Capability
-        if !signer.getCapability<
+        if !parent.getCapability<
                 &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPrivatePath).check() {
-            signer.unlink(LinkedAccounts.CollectionPrivatePath)
-            signer.link<
+            parent.unlink(LinkedAccounts.CollectionPrivatePath)
+            parent.link<
                 &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(
                 LinkedAccounts.CollectionPrivatePath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
-        // Get Collection reference from signer
-        self.collectionRef = signer.borrow<&LinkedAccounts.Collection>(
-                from: LinkedAccounts.CollectionStoragePath
-            )!
-        // Get Collection reference from signer
+        // Get Collection reference from parent
         self.collectionRef = parent.borrow<&LinkedAccounts.Collection>(
                 from: LinkedAccounts.CollectionStoragePath
             )!
