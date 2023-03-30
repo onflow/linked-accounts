@@ -1,55 +1,49 @@
 {
 	"contracts": {
-		"LinkedAccounts": {
-			"source": "./contracts/LinkedAccounts.cdc",
-			"aliases": {
-				"emulator": "0xf8d6e0586b0a20c7"
-			}
-		},
-		"LinkedAccountMetadataViews": {
-			"source": "./contracts/LinkedAccountMetadataViews.cdc",
-			"aliases": {
-				"emulator": "0xf8d6e0586b0a20c7"
-			}
-		},
+		"ExampleNFT": "./contracts/utility/ExampleNFT.cdc",
+		"ExampleValidators": "./contracts/ExampleValidators.cdc",
 		"FlowToken": {
 			"source": "./contracts/utility/FlowToken.cdc",
 			"aliases": {
-				"emulator": "0x0ae53cb6e3f42a79",
-				"mainnet": "0x1654653399040a61",
-				"testnet": "0x7e60df042a9c0868"
+				"emulator": "0ae53cb6e3f42a79",
+				"mainnet": "1654653399040a61",
+				"testnet": "7e60df042a9c0868"
 			}
 		},
 		"FungibleToken": {
 			"source": "./contracts/utility/FungibleToken.cdc",
 			"aliases": {
-				"emulator": "0xee82856bf20e2aa6",
-				"mainnet": "0xf233dcee88fe0abe",
-				"testnet": "0x9a0766d93b6608b7"
+				"emulator": "ee82856bf20e2aa6",
+				"mainnet": "f233dcee88fe0abe",
+				"testnet": "9a0766d93b6608b7"
 			}
 		},
 		"FungibleTokenMetadataViews": {
 			"source": "./contracts/utility/FungibleTokenMetadataViews.cdc",
 			"aliases": {
-				"emulator": "0xf8d6e0586b0a20c7",
-				"mainnet": "0xf233dcee88fe0abe",
-				"testnet": "0x9a0766d93b6608b7"
+				"emulator": "f8d6e0586b0a20c7",
+				"mainnet": "f233dcee88fe0abe",
+				"testnet": "9a0766d93b6608b7"
+			}
+		},
+		"LinkedAccountMetadataViews": {
+			"source": "./contracts/LinkedAccountMetadataViews.cdc",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7"
+			}
+		},
+		"LinkedAccounts": {
+			"source": "./contracts/LinkedAccounts.cdc",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7"
 			}
 		},
 		"MetadataViews": {
 			"source": "./contracts/utility/MetadataViews.cdc",
 			"aliases": {
-				"emulator": "0xf8d6e0586b0a20c7",
-				"mainnet": "0x1d7e57aa55817448",
-				"testnet": "0x631e88ae7f1d7c20"
-			}
-		},
-		"ViewResolver": {
-			"source": "./contracts/utility/ViewResolver.cdc",
-			"aliases": {
-				"emulator": "0xf8d6e0586b0a20c7",
-				"mainnet": "0x1d7e57aa55817448",
-				"testnet": "0x631e88ae7f1d7c20"
+				"emulator": "f8d6e0586b0a20c7",
+				"mainnet": "1d7e57aa55817448",
+				"testnet": "631e88ae7f1d7c20"
 			}
 		},
 		"NonFungibleToken": {
@@ -61,7 +55,14 @@
 			}
 		},
 		"ScopedAccounts": "./contracts/ScopedAccounts.cdc",
-		"ExampleValidators": "./contracts/ExampleValidators.cdc"
+		"ViewResolver": {
+			"source": "./contracts/utility/ViewResolver.cdc",
+			"aliases": {
+				"emulator": "f8d6e0586b0a20c7",
+				"mainnet": "1d7e57aa55817448",
+				"testnet": "631e88ae7f1d7c20"
+			}
+		}
 	},
 	"networks": {
 		"emulator": "127.0.0.1:3569",
@@ -92,9 +93,9 @@
 				"LinkedAccountMetadataViews",
 				"LinkedAccounts",
 				"ScopedAccounts",
-				"ExampleValidators"
+				"ExampleValidators",
+				"ExampleNFT"
 			]
 		}
 	}
 }
- 

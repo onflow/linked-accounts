@@ -11,6 +11,7 @@ pub contract ScopedAccounts {
     /* Canonical Paths */
     //
     pub let AccessPointStoragePath: StoragePath
+    pub let AccessPointPublicPath: PublicPath
     pub let AccessPointPrivatePath: PrivatePath
 
     /* Events */
@@ -112,6 +113,7 @@ pub contract ScopedAccounts {
     
     init() {
         self.AccessPointStoragePath = /storage/ScopedAccountsAccessPoint
+        self.AccessPointPublicPath = /public/ScopedAccountsAccessPoint
         self.AccessPointPrivatePath = /private/ScopedAccountsAccessPoint
     }
 }
