@@ -50,19 +50,23 @@ pub contract ScopedAccounts {
             self.validator = validator
         }
 
+        pub fun getID(): UInt64 {
+            return self.id
+        }
+
         pub fun getAllowedCapabilities(): {Type: CapabilityPath} {
             return self.allowedCapabilities
         }
 
         pub fun getScopedAccountAddress(): Address {
-            return self.borrowAuthAcccount().address
+            return self.borrowAuthAccount().address
         }
 
         pub fun getCapabilityByType(_ type: Type): Capability? {
             if self.allowedCapabilities.containsKey(type) {
-                let account: &AuthAccount = self.borrowAuthAcccount()
+                let account: &AuthAccount = self.borrowAuthAccount()
                 let cap: Capability = account.getCapability(
-                    self.allowedCapabilitiesp[type]!
+                    self.allowedCapabilities[type]!
                 )
                 if self.validator.validate(expectedType: type, capability: cap) {
                     return cap

@@ -59,7 +59,9 @@
 				"mainnet": "1d7e57aa55817448",
 				"testnet": "631e88ae7f1d7c20"
 			}
-		}
+		},
+		"ScopedAccounts": "./contracts/ScopedAccounts.cdc",
+		"ExampleValidators": "./contracts/ExampleValidators.cdc"
 	},
 	"networks": {
 		"emulator": "127.0.0.1:3569",
@@ -88,7 +90,9 @@
 				"MetadataViews",
 				"ViewResolver",
 				"LinkedAccountMetadataViews",
-				"LinkedAccounts"
+				"LinkedAccounts",
+				"ScopedAccounts",
+				"ExampleValidators"
 			]
 		}
 	}
