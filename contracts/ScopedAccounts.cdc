@@ -86,6 +86,20 @@ pub contract ScopedAccounts {
             return self.authAccountCapability.borrow() ?? panic("Problem with AuthAccount Capability")
         }
     }
+
+    /// Creates a new AccessPoint resource
+    ///
+    pub fun createAccessPoint(
+        authAccountCapability: Capability<&AuthAccount>,
+        allowedCapabilities: {Type: CapabilityPath},
+        validator: AnyStruct{CapabilityValidator}
+    ): @AccessPoint {
+        return <-create AccessPoint(
+            authAccountCapability: authAccountCapability,
+            allowedCapabilities: allowedCapabilities,
+            validator: validator
+        )
+    }
     
     init() {
         self.AccessPointStoragePath = /storage/ScopedAccountsAccessPoint
