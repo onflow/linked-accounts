@@ -36,7 +36,7 @@ transaction(
 		
 		/* --- Account Creation (your dApp may choose to handle creation differently depending on your custodial model) --- */
 		//
-		// Create the child account, funding via the signer
+		// Create the child account, funding via the client
 		let newAccount = AuthAccount(payer: client)
 		// Create a public key for the proxy account from string value in the provided arg
 		// **NOTE:** You may want to specify a different signature algo for your use case
@@ -86,31 +86,27 @@ transaction(
             )
         }
         // Link the public Capability
-        if !signer.getCapability<
+        if !parent.getCapability<
                 &LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPublicPath).check() {
-            signer.unlink(LinkedAccounts.CollectionPublicPath)
-            signer.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
+            parent.unlink(LinkedAccounts.CollectionPublicPath)
+            parent.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
                 LinkedAccounts.CollectionPublicPath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
         // Link the private Capability
-        if !signer.getCapability<
+        if !parent.getCapability<
                 &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(LinkedAccounts.CollectionPrivatePath).check() {
-            signer.unlink(LinkedAccounts.CollectionPrivatePath)
-            signer.link<
+            parent.unlink(LinkedAccounts.CollectionPrivatePath)
+            parent.link<
                 &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(
                 LinkedAccounts.CollectionPrivatePath,
                 target: LinkedAccounts.CollectionStoragePath
             )
         }
-        // Get Collection reference from signer
-        self.collectionRef = signer.borrow<&LinkedAccounts.Collection>(
-                from: LinkedAccounts.CollectionStoragePath
-            )!
 		// Assign a reference to the Collection we now know is correctly configured
 		self.collectionRef = parent.borrow<&LinkedAccounts.Collection>(from: LinkedAccounts.CollectionStoragePath)!
 
