@@ -117,6 +117,7 @@ transaction(
             ?? panic("Could not construct PrivatePath from given suffix: ".concat(authAccountPathSuffix))
 		// Link the new account's AuthAccount Capability
 		self.authAccountCap = newAccount.linkAccount(authAccountPath)
+			?? panic("Problem linking AuthAccount Capability in new account!")
 		
 		/** --- Construct metadata --- */
         //

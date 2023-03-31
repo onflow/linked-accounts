@@ -10,9 +10,8 @@ pub fun main(parent: Address, child: Address): Bool {
             LinkedAccounts.CollectionPublicPath
         ).borrow() {
         // Check if the link is active between accounts
-        collectionRef.isLinkActive(onAddress: child)
+        return collectionRef.isLinkActive(onAddress: child)
     }
-    
     return false
 }
  

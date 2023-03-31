@@ -90,7 +90,6 @@ pub contract LinkedAccounts : NonFungibleToken, ViewResolver {
             resolver: AnyStruct{LinkedAccountMetadataViews.MetadataResolver}?
         ) {
             self.parentAddress = parentAddress
-            // self.address = address
             self.metadata = metadata
             self.resolver = resolver
             self.isActive = true
