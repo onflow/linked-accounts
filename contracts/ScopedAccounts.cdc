@@ -111,30 +111,59 @@ pub contract ScopedAccounts {
     /// Wrapper for the AccessPoint Capability
     ///
     pub resource Accessor {
-
+        /// The UUID for the AccessPoint this Accessor is designed to access
+        access(self) let accessPointUUID: UInt64
         /// Capability to an AccessPoint
         access(self) var accessPointCapability: Capability<&AccessPoint>
         
         init(accessPointCapability: Capability<&AccessPoint>) {
+            pre {
+                accessPointCapability.check():
+                    "Problem with provided AccessPoint Capability!"
+            }
             self.accessPointCapability = accessPointCapability
+            self.accessPointUUID = accessPointCapability.borrow()!.uuid
         }
 
         /// Simple getter for the stored AccessPoint Capability
         ///
         pub fun getAccessPointCapability(): Capability<&AccessPoint> {
+            pre {
+                self.accessPointCapability.check():
+                    "Problem with stored AccessPoint Capability!"
+                self.accessPointCapability.borrow()!.uuid == self.accessPointUUID:
+                    "Underlying AccessPoint resource has been changed!"
+            }
             return self.accessPointCapability
+        }
+
+        /// Getter for the Address of the account this Accessor is able to access
+        ///
+        pub fun getAccessibleAccount(): Address {
+            return self.borrowAccessPoint().getScopedAccountAddress()
         }
 
         /// Allows caller to retrieve reference to the AccessPoint for which a Capability is stored
         ///
         pub fun borrowAccessPoint(): &AccessPoint {
-            return self.accessPointCapability.borrow()
-                ?? panic("Problem borrowing AccessPoint reference!")
+            pre {
+                self.accessPointCapability.check():
+                    "Problem with stored AccessPoint Capability!"
+                self.accessPointCapability.borrow()!.uuid == self.accessPointUUID:
+                    "Underlying AccessPoint resource has been changed!"
+            }
+            return self.accessPointCapability.borrow()!
         }
 
         /// Enables caller to swap the stored AccessPoint Capability for another
         ///
         pub fun swapAccessPointCapability(_ new: Capability<&AccessPoint>) {
+            pre {
+                new.check():
+                    "Problem with provided AccessPoint Capability!"
+                new.borrow()!.uuid == self.accessPointUUID:
+                    "Provided a Capability for an AccessPoint different than this Accessor was originally given!"
+            }
             self.accessPointCapability = new
         }
     }
