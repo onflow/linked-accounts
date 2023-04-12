@@ -1,7 +1,7 @@
 import MetadataViews from "./utility/MetadataViews.cdc"
 
 /// Metadata views relevant to identifying information about linked accounts
-/// designed for use in the standard LinkedAccounts contract
+/// designed for use in the standard ScopedLinkedAccounts contract
 ///
 pub contract LinkedAccountMetadataViews {
 
@@ -45,7 +45,7 @@ pub contract LinkedAccountMetadataViews {
         }
     }
 
-    /// A struct enabling LinkedAccount.Handler to maintain implementer defined metadata
+    /// A struct enabling ScopedLinkedAccounts.Handler to maintain implementer defined metadata
     /// resolver in conjunction with the default structs above
     ///
     pub struct interface MetadataResolver {
