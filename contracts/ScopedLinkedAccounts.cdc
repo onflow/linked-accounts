@@ -373,7 +373,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
         pub let id: UInt64
         pub fun checkAccessPointCapability(): Bool
         pub fun getLinkedAccountAddress(): Address
-        pub fun getAccessPointPublicRef(): &AccessPoint{AccessPointPublic}
+        pub fun borrowAccessPointPublic(): &AccessPoint{AccessPointPublic}
     }
 
     /// Wrapper for the linked account's metadata and AccessPoint Capabilities implemented as an NFT
@@ -446,7 +446,9 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
                                     "id": self.id,
                                     "parentAddress": self.owner?.address,
                                     "linkedAddress": self.getLinkedAccountAddress(),
-                                    "creationTimestamp": accountInfo.creationTimestamp
+                                    "creationTimestamp": accountInfo.creationTimestamp,
+                                    "allowedCapabilities": accessPointRef.getAllowedCapabilities(),
+                                    "isRestricted": accessPointRef.isRestricted()
                                 },
                                 excludedNames: nil
                             )
@@ -492,7 +494,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         /// @return a reference to the AccessPoint as AccessPointPublic 
         ///
-        pub fun getAccessPointPublicRef(): &AccessPoint{AccessPointPublic} {
+        pub fun borrowAccessPointPublic(): &AccessPoint{AccessPointPublic} {
             return self.accessPointCapability.borrow() ?? panic("Problem with AccessPoint Capability in NFT!")
         }
 
@@ -557,6 +559,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
                     "Cannot borrow ExampleNFT reference: the ID of the returned reference is incorrect"
             }
         }
+        pub fun borrowAccessPointPublic(address: Address): &{AccessPointPublic}?
         pub fun borrowViewResolverFromAddress(address: Address): &{MetadataViews.Resolver}
     }
 
@@ -809,6 +812,13 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
             return self.borrowViewResolver(
                 id: self.addressToID[address] ?? panic("No ScopedLinkedAccounts.NFT with given Address")
             )
+        }
+
+        pub fun borrowAccessPointPublic(address: Address): &{AccessPointPublic}? {
+            if let nftRef = self.borrowScopedLinkedAccountNFT(address: address) {
+                return nftRef.borrowAccessPointPublic()
+            }
+            return nil
         }
 
         /// Allows the Collection to retrieve a reference to the NFT for a specified linked account address

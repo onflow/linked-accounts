@@ -1,4 +1,4 @@
-import ScopedLinkedAccounts from "../contracts/ScopedAccounts.cdc"
+import ScopedLinkedAccounts from "../contracts/ScopedLinkedAccounts.cdc"
 
 /// Returns the allowed Capabilities scoped in an AccessPoint
 ///
