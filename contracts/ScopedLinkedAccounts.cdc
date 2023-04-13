@@ -59,7 +59,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
     // ScopedLinkedAccounts Events
     pub event MintedNFT(nftID: UInt64, accessPointID: UInt64, child: Address,  parent: Address, allowedTypes: [Type])
     pub event AddedLinkedAccount(child: Address, parent: Address, nftID: UInt64)
-    pub event UpdatedAccessPointCapabilityForLinkedAccount(id: UInt64, parent: Address, child: Address)
+    pub event UpdatedAccessPointCapabilityForLinkedAccount(nftID: UInt64, accessPointID: UInt64, parent: Address, child: Address)
     pub event RemovedLinkedAccount(child: Address, parent: Address)
     pub event AccessPointCreated(id: UInt64, address: Address, pendingParent: Address, allowedCapabilityTypes: [Type])
     pub event CollectionCreated()
@@ -136,6 +136,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
     //
     pub resource interface AccessPointPublic {
         pub fun getID(): UInt64
+        pub fun getParentAddress(): Address
         pub fun getAllowedCapabilityTypes(): [Type]
         pub fun getAllowedCapabilities(): {Type: CapabilityPath}
         pub fun getScopedAccountAddress(): Address
@@ -512,8 +513,9 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
                 newCap.address == self.linkedAccountAddress:
                     "Provided AuthAccount is not for this NFT's associated account Address!"
             }
+            let accessPointID = newCap.borrow()!.getID()
             self.accessPointCapability = newCap
-            emit UpdatedAccessPointCapabilityForLinkedAccount(id: self.id, parent: self.owner!.address, child: self.linkedAccountAddress)
+            emit UpdatedAccessPointCapabilityForLinkedAccount(nftID: self.id, accessPointID: accessPointID, parent: self.owner!.address, child: self.linkedAccountAddress)
         }
 
         pub fun borrowLinkedAuthAccount(): &AuthAccount? {
@@ -537,11 +539,11 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
     /// about specific linked accounts by Address
     ///
     pub resource interface CollectionPublic {
+        pub fun getIDs(): [UInt64]
         pub fun getAddressToID(): {Address: UInt64}
         pub fun getLinkedAccountAddresses(): [Address]
         pub fun getIDOfNFTByAddress(address: Address): UInt64?
         pub fun deposit(token: @NonFungibleToken.NFT)
-        pub fun getIDs(): [UInt64]
         pub fun isLinkActive(onAddress: Address): Bool
         pub fun borrowNFT(id: UInt64): &NonFungibleToken.NFT {
             post {
