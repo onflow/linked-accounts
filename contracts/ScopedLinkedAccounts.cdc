@@ -107,6 +107,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
         ): @AccessPoint {
             let accessPoint <-create AccessPoint(
                 adminID: self.id,
+                creatorAddress: self.owner?.address ?? panic("AccessPointAdmin must have an owner for AccessPoint auditability!"),
                 authAccountCapability: authAccountCapability,
                 allowedCapabilities: allowedCapabilities,
                 validator: validator,
@@ -145,6 +146,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
     pub resource interface AccessPointPublic {
         pub fun getID(): UInt64
         pub fun getParentAddress(): Address
+        pub fun getCreatorAddress(): Address
         pub fun getAllowedCapabilityTypes(): [Type]
         pub fun getAllowedCapabilities(): {Type: CapabilityPath}
         pub fun getScopedAccountAddress(): Address
@@ -156,7 +158,10 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
     pub resource AccessPoint : AccessPointPublic, MetadataViews.Resolver {
         /// Unique identifier for this AccessPoint
         access(self) let id: UInt64
+        /// ID of the creating AccessPointAdmin
         access(self) let adminID: UInt64
+        /// Address of the creating AccessPointAdmin owner - helpful for identifying reputable account creators
+        access(self) let creatorAddress: Address
         /// Capability on the account this resources has access to
         access(self) let authAccountCapability: Capability<&AuthAccount>
         /// Defined Capability resolution Types and where to find associated Capability
@@ -172,10 +177,12 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
         access(self) let resolver: AnyStruct{LinkedAccountMetadataViews.MetadataResolver}?
         /// Flag denoting whether link to parent is still active
         access(self) var isActive: Bool
+        /// Flag denoting whether this AccessPoint has restricted access on its AuthAccount Capability
         access(self) var restricted: Bool
 
         init(
             adminID: UInt64,
+            creatorAddress: Address
             authAccountCapability: Capability<&AuthAccount>,
             allowedCapabilities: {Type: CapabilityPath},
             validator: AnyStruct{CapabilityValidator},
@@ -188,6 +195,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
             }
             self.id = self.uuid
             self.adminID = adminID
+            self.creatorAddress = creatorAddress
             self.authAccountCapability = authAccountCapability
             self.allowedCapabilities = allowedCapabilities
             self.validator = validator
@@ -312,6 +320,13 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
         ///
         pub fun getParentAddress(): Address {
             return self.parentAddress
+        }
+
+        /// Getter for the Address which created this AccessPoint. This can be helpful for identifying the entity that
+        /// created this AccessPoint
+        ///
+        pub fun getCreatorAddress(): Address {
+            return self.creatorAddress
         }
         
         /// Returns the metadata related to this account's association
