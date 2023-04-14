@@ -1,7 +1,7 @@
 import NonFungibleToken from "../contracts/utility/NonFungibleToken.cdc"
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
 import LinkedAccountMetadataViews from "../contracts/LinkedAccountMetadataViews.cdc"
-import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
+import ScopedLinkedAccounts from "../contracts/ScopedLinkedAccounts.cdc"
 
 pub struct LinkedAccountData {
     pub let address: Address
@@ -32,12 +32,12 @@ pub struct LinkedAccountData {
 ///
 pub fun main(parent: Address, child: Address): LinkedAccountData? {
 
-    // Get reference to LinkedAccounts.Collection if it exists
-    if let collectionRef = getAccount(parent).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
-            LinkedAccounts.CollectionPublicPath
+    // Get reference to ScopedLinkedAccounts.Collection if it exists
+    if let collectionRef = getAccount(parent).getCapability<&ScopedLinkedAccounts.Collection{ScopedLinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
+            ScopedLinkedAccounts.CollectionPublicPath
         ).borrow() {
         let addressToID: {Address: UInt64}  = collectionRef.getAddressToID()
-        // Iterate over each linked account in LinkedAccounts.Collection
+        // Iterate over each linked account in ScopedLinkedAccounts.Collection
         let accountInfo: LinkedAccountMetadataViews.AccountInfo = (collectionRef.borrowViewResolverFromAddress(
                 address: child
             ).resolveView(

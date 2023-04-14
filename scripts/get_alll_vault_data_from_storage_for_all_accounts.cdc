@@ -1,7 +1,7 @@
 import FungibleToken from "../contracts/utility/FungibleToken.cdc"
 import FungibleTokenMetadataViews from "../contracts/utility/FungibleTokenMetadataViews.cdc"
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
-import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
+import ScopedLinkedAccounts from "../contracts/ScopedLinkedAccounts.cdc"
 
 /// Custom struct to easily communicate vault data to a client
 pub struct VaultInfo {
@@ -110,9 +110,9 @@ pub fun main(address: Address): {Type: VaultInfo} {
     
     /* Iterate over any linked accounts */ 
     //
-    // Get reference to LinkedAccounts.Collection if it exists
-    if let collectionRef = getAccount(address).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(
-            LinkedAccounts.CollectionPublicPath
+    // Get reference to ScopedLinkedAccounts.Collection if it exists
+    if let collectionRef = getAccount(address).getCapability<&ScopedLinkedAccounts.Collection{ScopedLinkedAccounts.CollectionPublic}>(
+            ScopedLinkedAccounts.CollectionPublicPath
         ).borrow() {
         // Iterate over each linked account in Collection
         for linkedAccount in collectionRef.getLinkedAccountAddresses() {

@@ -25,4 +25,3 @@ pub fun main(address: Address): {Address: {Type: CapabilityPath}}  {
     // Return the final aggregate value
     return allowedCapabilities
 }
- 

@@ -1,6 +1,6 @@
 import NonFungibleToken from "../contracts/utility/NonFungibleToken.cdc"
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
-import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
+import ScopedLinkedAccounts from "../contracts/ScopedLinkedAccounts.cdc"
 
 /// Custom struct to make interpretation of NFT & Collection data easy client side
 pub struct NFTData {
@@ -95,7 +95,7 @@ pub fun getAllViewsFromAddress(_ address: Address): [NFTData] {
 /// which would result in memory errors. To compose a script that does cover accounts with
 /// a large number of sub-accounts and/or NFTs within those accounts, see example 5 in
 /// the NFT Catalog's README: https://github.com/dapperlabs/nft-catalog and adapt for use
-/// with LinkedAccounts.Collection
+/// with ScopedLinkedAccounts.Collection
 ///
 pub fun main(address: Address): {Address: [NFTData]} {
     let allNFTData: {Address: [NFTData]} = {}
@@ -105,11 +105,11 @@ pub fun main(address: Address): {Address: [NFTData]} {
     
     /* Iterate over any child accounts */ 
     //
-    // Get reference to LinkedAccounts.Collection if it exists
-    if let collectionRef = getAccount(address).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(
-            LinkedAccounts.CollectionPublicPath
+    // Get reference to ScopedLinkedAccounts.Collection if it exists
+    if let collectionRef = getAccount(address).getCapability<&ScopedLinkedAccounts.Collection{ScopedLinkedAccounts.CollectionPublic}>(
+            ScopedLinkedAccounts.CollectionPublicPath
         ).borrow() {
-        // Iterate over each linked account in LinkedAccounts.Collection
+        // Iterate over each linked account in ScopedLinkedAccounts.Collection
         for childAddress in collectionRef.getLinkedAccountAddresses() {
             if !allNFTData.containsKey(childAddress) {
                 // Insert the NFT metadata for those NFTs in each child account

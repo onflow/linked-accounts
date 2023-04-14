@@ -61,7 +61,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
     pub event AddedLinkedAccount(child: Address, parent: Address, nftID: UInt64)
     pub event UpdatedAccessPointCapabilityForLinkedAccount(nftID: UInt64, accessPointID: UInt64, parent: Address, child: Address)
     pub event RemovedLinkedAccount(child: Address, parent: Address)
-    pub event AccessPointCreated(id: UInt64, address: Address, pendingParent: Address, allowedCapabilityTypes: [Type])
+    pub event AccessPointCreated(id: UInt64, address: Address, pendingParent: Address, creator: Address?, allowedCapabilityTypes: [Type])
     pub event CollectionCreated()
 
     // Canonical paths
@@ -105,7 +105,7 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
             metadata: AnyStruct{LinkedAccountMetadataViews.AccountMetadata},
             resolver: AnyStruct{LinkedAccountMetadataViews.MetadataResolver}?
         ): @AccessPoint {
-            return <-create AccessPoint(
+            let accessPoint <-create AccessPoint(
                 adminID: self.id,
                 authAccountCapability: authAccountCapability,
                 allowedCapabilities: allowedCapabilities,
@@ -114,6 +114,14 @@ pub contract ScopedLinkedAccounts : NonFungibleToken, ViewResolver {
                 metadata: metadata,
                 resolver: resolver
             )
+            emit AccessPointCreated(
+                id: accessPoint.getID(),
+                address: accessPoint.getScopedAccountAddress(),
+                pendingParent: parentAddress,
+                creator: self.owner?.address,
+                allowedCapabilityTypes: allowedCapabilities.keys
+            )
+            return <-accessPoint
         }
 
         /// Unrestricts the access to the AuthAccount Capability wrapped in the AccessPoint. The given referenced 

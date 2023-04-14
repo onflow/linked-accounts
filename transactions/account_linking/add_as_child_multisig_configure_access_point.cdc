@@ -3,92 +3,83 @@
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
 import NonFungibleToken from "../../contracts/utility/NonFungibleToken.cdc"
 import LinkedAccountMetadataViews from "../../contracts/LinkedAccountMetadataViews.cdc"
-import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
-import ScopedAccounts from "../../contracts/ScopedAccounts.cdc"
+import ScopedLinkedAccounts from "../../contracts/ScopedLinkedAccounts.cdc"
 import ExampleValidators from "../../contracts/ExampleValidators.cdc"
 import ExampleNFT from "../../contracts/utility/ExampleNFT.cdc"
 
 /// Links thie signing accounts as labeled, with the child's AuthAccount Capability maintained in the parent's
-/// LinkedAccounts.Collection, ensuring that secondary is scoped by a ScopedAccounts.AccessPoint
+/// ScopedLinkedAccounts.Collection, ensuring that secondary is scoped by a ScopedAccounts.AccessPoint
 ///
 transaction(
     linkedAccountName: String,
     linkedAccountDescription: String,
     clientThumbnailURL: String,
     clientExternalURL: String,
-    parentAuthAccountPathSuffix: String,
-    accessPointAuthAccountPathSuffix: String,
-    handlerPathSuffix: String,
-    accessPointRecipient: Address,
-    keyIndexToRevoke: Int
+    authAccountPathSuffix: String
 ) {
 
-    let collectionRef: &LinkedAccounts.Collection
+    let collectionRef: &ScopedLinkedAccounts.Collection
     let info: LinkedAccountMetadataViews.AccountInfo
-    let linkedauthAccountCap: Capability<&AuthAccount>
-    let accessPointAuthAccountCap: Capability<&AuthAccount>
+    let authAccountCap: Capability<&AuthAccount>
     let linkedAccountAddress: Address
+    let accessPointCap: Capability<&ScopedLinkedAccounts.AccessPoint>
 
-    prepare(parent: AuthAccount, child: AuthAccount) {
-        pre {
-            parentAuthAccountPathSuffix != accessPointAuthAccountPathSuffix:
-                "Transaction does not suppot linking AuthAccount Capability to parent & access points on same paths!"
-        }
+    prepare(parent: AuthAccount, child: AuthAccount, admin: AuthAccount) {
         
         /** --- Configure Collection & get ref --- */
         //
         // Check that Collection is saved in storage
-        if parent.type(at: LinkedAccounts.CollectionStoragePath) == nil {
+        if parent.type(at: ScopedLinkedAccounts.CollectionStoragePath) == nil {
             parent.save(
-                <-LinkedAccounts.createEmptyCollection(),
-                to: LinkedAccounts.CollectionStoragePath
+                <-ScopedLinkedAccounts.createEmptyCollection(),
+                to: ScopedLinkedAccounts.CollectionStoragePath
             )
         }
         // Link the public Capability
         if !parent.getCapability<
-                &LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
-            >(LinkedAccounts.CollectionPublicPath).check() {
-            parent.unlink(LinkedAccounts.CollectionPublicPath)
-            parent.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
-                LinkedAccounts.CollectionPublicPath,
-                target: LinkedAccounts.CollectionStoragePath
+                &ScopedLinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, ScopedLinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
+            >(ScopedLinkedAccounts.CollectionPublicPath).check() {
+            parent.unlink(ScopedLinkedAccounts.CollectionPublicPath)
+            parent.link<&ScopedLinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, ScopedLinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
+                ScopedLinkedAccounts.CollectionPublicPath,
+                target: ScopedLinkedAccounts.CollectionStoragePath
             )
         }
         // Link the private Capability
         if !parent.getCapability<
-                &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
-            >(LinkedAccounts.CollectionPrivatePath).check() {
-            parent.unlink(LinkedAccounts.CollectionPrivatePath)
+                &ScopedLinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, ScopedLinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
+            >(ScopedLinkedAccounts.CollectionPrivatePath).check() {
+            parent.unlink(ScopedLinkedAccounts.CollectionPrivatePath)
             parent.link<
-                &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
+                &ScopedLinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, ScopedLinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(
-                LinkedAccounts.CollectionPrivatePath,
-                target: LinkedAccounts.CollectionStoragePath
+                ScopedLinkedAccounts.CollectionPrivatePath,
+                target: ScopedLinkedAccounts.CollectionStoragePath
             )
         }
         // Get Collection reference from parent
-        self.collectionRef = parent.borrow<&LinkedAccounts.Collection>(
-                from: LinkedAccounts.CollectionStoragePath
+        self.collectionRef = parent.borrow<&ScopedLinkedAccounts.Collection>(
+                from: ScopedLinkedAccounts.CollectionStoragePath
             )!
 
         /* --- Link the child account's AuthAccount Capability & assign --- */
         //
         // Assign the PrivatePath where we'll link the AuthAccount Capability
-        let linkedAuthAccountPath: PrivatePath = PrivatePath(identifier: parentAuthAccountPathSuffix)
-            ?? panic("Could not construct PrivatePath from given suffix: ".concat(parentAuthAccountPathSuffix))
+        let authAccountPrivatePath: PrivatePath = PrivatePath(identifier: authAccountPathSuffix)
+            ?? panic("Could not construct PrivatePath from given suffix: ".concat(authAccountPathSuffix))
         // Get the AuthAccount Capability, linking if necessary
-        if !child.getCapability<&AuthAccount>(linkedAuthAccountPath).check() {
+        if !child.getCapability<&AuthAccount>(authAccountPrivatePath).check() {
             // Unlink any Capability that may be there
-            child.unlink(linkedAuthAccountPath)
+            child.unlink(authAccountPrivatePath)
             // Link & assign the AuthAccount Capability
-            self.linkedauthAccountCap = child.linkAccount(linkedAuthAccountPath)!
+            self.authAccountCap = child.linkAccount(authAccountPrivatePath)!
         } else {
             // Assign the AuthAccount Capability
-            self.linkedauthAccountCap = child.getCapability<&AuthAccount>(linkedAuthAccountPath)
+            self.authAccountCap = child.getCapability<&AuthAccount>(authAccountPrivatePath)
         }
-        self.linkedAccountAddress = self.linkedauthAccountCap.borrow()?.address ?? panic("Problem with retrieved AuthAccount Capability")
+        self.linkedAccountAddress = self.authAccountCap.borrow()?.address ?? panic("Problem with retrieved AuthAccount Capability")
 
-        /** --- Construct metadata --- */
+        /** --- Construct metadata for AccessPoint in child account --- */
         //
         // Construct linked account metadata from given arguments
         self.info = LinkedAccountMetadataViews.AccountInfo(
@@ -98,68 +89,46 @@ transaction(
             externalURL: MetadataViews.ExternalURL(clientExternalURL)
         )
 
-        /* --- Configure AccessPoint in child account --- */
+        /** --- Get an AccessPointAdmin reference --- */
         //
-        // Assign the PrivatePath where we'll link the AuthAccount Capability
-        let accessPointAuthAccountPath: PrivatePath = PrivatePath(identifier: accessPointAuthAccountPathSuffix)
-            ?? panic("Could not construct PrivatePath from given suffix: ".concat(accessPointAuthAccountPathSuffix))
-        // Get the AuthAccount Capability, linking if necessary
-        if !child.getCapability<&AuthAccount>(accessPointAuthAccountPath).check() {
-            // Unlink any Capability that may be there
-            child.unlink(accessPointAuthAccountPath)
-            // Link & assign the AuthAccount Capability
-            self.accessPointAuthAccountCap = child.linkAccount(accessPointAuthAccountPath)!
-        } else {
-            // Assign the AuthAccount Capability
-            self.accessPointAuthAccountCap = child.getCapability<&AuthAccount>(accessPointAuthAccountPath)
+        // Get AccessPointAdmin resource from admin
+        if admin.type(at: ScopedLinkedAccounts.AccessPointAdminStoragePath) == nil {
+            admin.save(<-ScopedLinkedAccounts.createAccessPointAdmin(), to: ScopedLinkedAccounts.AccessPointAdminStoragePath)
         }
+        let adminRef = admin.borrow<&ScopedLinkedAccounts.AccessPointAdmin>(from: ScopedLinkedAccounts.AccessPointAdminStoragePath)!
 
         // Define allowable Types and Paths to retrieve them - those listed below are just for illustration, you'd want
         // to define the types and paths for your specific use case & ensure that the account is configured with those
         // Capabilities
         let allowedCapabilities: {Type: CapabilityPath} = {
-            Type<&ExampleNFT.Collection{ExampleNFT.ExampleNFTCollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Receiver,MetadataViews.ResolverCollection}>(): ExampleNFT.CollectionPublicPath,
-            Type<&ExampleNFT.Collection{ExampleNFT.ExampleNFTCollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Provider,MetadataViews.ResolverCollection}>(): /private/exampleNFTCollection
+            Type<@ExampleNFT.Collection{ExampleNFT.ExampleNFTCollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Receiver,MetadataViews.ResolverCollection}>(): ExampleNFT.CollectionPublicPath,
+            Type<@ExampleNFT.Collection{ExampleNFT.ExampleNFTCollectionPublic,NonFungibleToken.CollectionPublic,NonFungibleToken.Provider,MetadataViews.ResolverCollection}>(): /private/exampleNFTCollection
         }
         // Make sure nothing is currently stored at the expected path
-        assert(child.type(at: ScopedAccounts.AccessPointStoragePath) == nil, message: "Object already stored at path: ".concat(ScopedAccounts.AccessPointStoragePath.toString()))
+        assert(child.type(at: ScopedLinkedAccounts.AccessPointStoragePath) == nil, message: "Object already stored at path: ".concat(ScopedLinkedAccounts.AccessPointStoragePath.toString()))
         // Create & save AccessPoint in the signing child account
         child.save(
-                <-ScopedAccounts.createAccessPoint(
-                    authAccountCapability: self.accessPointAuthAccountCap,
+                <-adminRef.createAccessPoint(
+                    authAccountCapability: self.authAccountCap,
                     allowedCapabilities: allowedCapabilities,
-                    validator: ExampleValidators.ExampleNFTCollectionValidator()
+                    validator: ExampleValidators.ExampleNFTCollectionValidator(),
+                    parentAddress: parent.address,
+                    metadata: self.info,
+                    resolver: nil
                 ),
-                to: ScopedAccounts.AccessPointStoragePath
+                to: ScopedLinkedAccounts.AccessPointStoragePath
             )
         // Link the AccessPointPublic Capability in public
-        child.link<&ScopedAccounts.AccessPoint{ScopedAccounts.AccessPointPublic}>(ScopedAccounts.AccessPointPublicPath, target: ScopedAccounts.AccessPointStoragePath)
+        child.link<&ScopedLinkedAccounts.AccessPoint{ScopedLinkedAccounts.AccessPointPublic}>(ScopedLinkedAccounts.AccessPointPublicPath, target: ScopedLinkedAccounts.AccessPointStoragePath)
         // Link the AccessPoint Capability in private
-        child.link<&ScopedAccounts.AccessPoint>(ScopedAccounts.AccessPointPrivatePath, target: ScopedAccounts.AccessPointStoragePath)
+        child.link<&ScopedLinkedAccounts.AccessPoint>(ScopedLinkedAccounts.AccessPointPrivatePath, target: ScopedLinkedAccounts.AccessPointStoragePath)
         // Get & assign the AccessPoint Capability
-        let accessPointCap: Capability<&ScopedAccounts.AccessPoint> = child.getCapability<&ScopedAccounts.AccessPoint>(ScopedAccounts.AccessPointPrivatePath)
-
-        /* Ensure scoped access is delegated & remove key access */
-        //
-        // Publish AccessPoint Capability for declared recipient
-        child.inbox.publish(accessPointCap, name: "AccessPoint", recipient: accessPointRecipient)
-        // Revoke the specified key on the account, so the dapp no longer has control of the child account
-        if child.keys.get(keyIndex: keyIndexToRevoke) != nil {
-            child.keys.revoke(keyIndex: keyIndexToRevoke)
-        }
+        self.accessPointCap = child.getCapability<&ScopedLinkedAccounts.AccessPoint>(ScopedLinkedAccounts.AccessPointPrivatePath)
     }
 
     execute {
-        // Add child account if it's parent-child accounts aren't already linked
-        if !self.collectionRef.getLinkedAccountAddresses().contains(self.linkedAccountAddress) {
-            // Add the child account
-            self.collectionRef.addAsChildAccount(
-                linkedAccountCap: self.linkedauthAccountCap,
-                linkedAccountMetadata: self.info,
-                linkedAccountMetadataResolver: nil,
-                handlerPathSuffix: handlerPathSuffix
-            )
-        }
+        // Add the child account
+        self.collectionRef.addAccessPoint(accessPointCap: self.accessPointCap)
     }
 
     post {
