@@ -1,6 +1,6 @@
 # Linked Accounts
 
-> This repo is reflective of the design proposed in [this FLIP](https://github.com/onflow/flips/pull/72) and the contained implementation on the main branch will be updated to reflect common consensus on a contract standard for linked account management.
+> :warning: This repo is reflective of iteration outlined in [this FLIP](https://github.com/onflow/flips/pull/72) and currently implemented in the [Walletless Arcade demo](https://walletless-arcade-game.vercel.app/). This repo should be taken as expirmental without expectation of making it to production in its current form. Note that collaborative work is currently underway on the `HybridCustody` contract suite in [this repo](https://github.com/Flowtyio/restricted-child-account), which will serve as the basis for Hybrid Custody on Flow moving forward.
 
 This repository contains the `LinkedAccounts` contracts along with supporting scripts & transactions related to linking accounts 
 in support of [walletless onboarding](https://flow.com/post/flow-blockchain-mainstream-adoption-easy-onboarding-wallets)
@@ -8,7 +8,7 @@ and the [hybrid custody account model](https://forum.onflow.org/t/hybrid-custody
 
 ### Contract Addresses
 **v1 Testnet (`ChildAccount`)**: [0x1b655847a90e644a](https://f.dnz.dev/0x1b655847a90e644a/ChildAccount)
-**v2 Testnet (`LinkedAccounts`)**: TBD
+**v2 Testnet (`LinkedAccounts`)**: [0x1b655847a90e644a](https://f.dnz.dev/0x1b655847a90e644a/LinkedAccounts)
 
 ## Linked accounts In Practice
 Check out the [@onflow/sc-eng-gaming repo](https://github.com/onflow/sc-eng-gaming/blob/sisyphusSmiling/child-account-auth-acct-cap/contracts/RockPaperScissorsGame.cdc) to see how the `LinkedAccounts` Cadence suite works in the context of a Rock, Paper, Scissors game.
