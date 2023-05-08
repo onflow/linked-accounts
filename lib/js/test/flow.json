@@ -1,0 +1,28 @@
+{
+	"emulators": {
+		"default": {
+			"port": 3569,
+			"serviceAccount": "emulator-account"
+		}
+	},
+	"contracts": {
+		"FungibleToken": "../../../contracts/utility/FungibleToken.cdc",
+		"FungibleTokenMetadataViews": "../../../contracts/utility/FungibleTokenMetadataViews.cdc",
+		"LinkedAccountMetadataViews": "../../../contracts/LinkedAccountsMetadataViews.cdc",
+		"LinkedAccounts": "../../../contracts/LinkedAccounts.cdc",
+		"MetadataViews": "../../../contracts/utility/MetadataViews.cdc",
+		"NonFungibleToken": "../../../contracts/utility/NonFungibleToken.cdc",
+		"ViewResolver": "../../../contracts/utility/ViewResolver.cdc"
+	},
+	"networks": {
+		"emulator": "127.0.0.1:3569"
+	},
+	"accounts": {
+		"emulator-account": {
+			"address": "f8d6e0586b0a20c7",
+			"key": "cf0c8a744e68368b1ddca6892ab593a6f7f2dc0ccc006567b5fce5d0d0717630"
+		}
+	},
+	"deployments": {}
+}
+ 

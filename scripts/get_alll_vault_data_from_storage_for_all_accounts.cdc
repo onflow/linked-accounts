@@ -1,7 +1,7 @@
 import FungibleToken from "../contracts/utility/FungibleToken.cdc"
 import FungibleTokenMetadataViews from "../contracts/utility/FungibleTokenMetadataViews.cdc"
 import MetadataViews from "../contracts/utility/MetadataViews.cdc"
-import ChildAccount from "../contracts/ChildAccount.cdc"
+import LinkedAccounts from "../contracts/LinkedAccounts.cdc"
 
 /// Custom struct to easily communicate vault data to a client
 pub struct VaultInfo {
@@ -98,22 +98,26 @@ pub fun merge(_ d1: {Type: VaultInfo}, _ d2: {Type: VaultInfo}): {Type: VaultInf
     return d1
 }
 
+/// Queries for FT.Vault info of all FT.Vaults in the specified account and all of its linked accounts
+///
+/// @param address: Address of the account to query FT.Vault data
+///
+/// @return A mapping of VaultInfo struct indexed on the Type of Vault
+///
 pub fun main(address: Address): {Type: VaultInfo} {
     // Get the balance info for the given address
     var balances: {Type: VaultInfo} = getAllVaultInfoInAddressStorage(address)
     
-    /* Iterate over any child accounts */ 
+    /* Iterate over any linked accounts */ 
     //
-    // Get reference to ChildAccountManager if it exists
-    if let managerRef = getAccount(address).getCapability<
-            &{ChildAccount.ChildAccountManagerViewer}
-        >(
-            ChildAccount.ChildAccountManagerPublicPath
+    // Get reference to LinkedAccounts.Collection if it exists
+    if let collectionRef = getAccount(address).getCapability<&LinkedAccounts.Collection{LinkedAccounts.CollectionPublic}>(
+            LinkedAccounts.CollectionPublicPath
         ).borrow() {
-        // Iterate over each child account in ChildAccountManagerRef
-        for childAddress in managerRef.getChildAccountAddresses() {
+        // Iterate over each linked account in Collection
+        for linkedAccount in collectionRef.getLinkedAccountAddresses() {
             // Ensure all vault type balances are pooled across all addresses
-            balances = merge(balances, getAllVaultInfoInAddressStorage(childAddress))
+            balances = merge(balances, getAllVaultInfoInAddressStorage(linkedAccount))
         }
     }
     return balances 

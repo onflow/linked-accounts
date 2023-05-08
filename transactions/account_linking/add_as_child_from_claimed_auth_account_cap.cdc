@@ -1,78 +1,94 @@
-import ChildAccount from "../../contracts/ChildAccount.cdc"
 import MetadataViews from "../../contracts/utility/MetadataViews.cdc"
+import NonFungibleToken from "../../contracts/utility/NonFungibleToken.cdc"
+import LinkedAccountMetadataViews from "../../contracts/LinkedAccountMetadataViews.cdc"
+import LinkedAccounts from "../../contracts/LinkedAccounts.cdc"
 
 /// Signing account claims a Capability to specified Address's AuthAccount
-/// and adds it as a child account in its ChildAccountManager, allowing it 
+/// and adds it as a child account in its LinkedAccounts.Collection, allowing it 
 /// to maintain the claimed Capability
 ///
 transaction(
-        pubKey: String,
-        childAddress: Address,
-        childAccountName: String,
-        childAccountDescription: String,
-        clientIconURL: String,
-        clientExternalURL: String
+        linkedAccountAddress: Address,
+        linkedAccountName: String,
+        linkedAccountDescription: String,
+        clientThumbnailURL: String,
+        clientExternalURL: String,
+        handlerPathSuffix: String
     ) {
 
-    let managerRef: &ChildAccount.ChildAccountManager
-    let info: ChildAccount.ChildAccountInfo
-    let childAccountCap: Capability<&AuthAccount>
+    let collectionRef: &LinkedAccounts.Collection
+    let info: LinkedAccountMetadataViews.AccountInfo
+    let authAccountCap: Capability<&AuthAccount>
 
     prepare(signer: AuthAccount) {
-        // Get ChildAccountManager Capability, linking if necessary
-        if signer.borrow<
-                &ChildAccount.ChildAccountManager
-            >(
-                from: ChildAccount.ChildAccountManagerStoragePath
-            ) == nil {
-            // Save a ChildAccountManager to the signer's account
-            signer.save(<-ChildAccount.createChildAccountManager(), to: ChildAccount.ChildAccountManagerStoragePath)
-        }
-        // Ensure ChildAccountManagerViewer is linked properly
-        if !signer.getCapability<
-                &{ChildAccount.ChildAccountManagerViewer}
-            >(
-                ChildAccount.ChildAccountManagerPublicPath
-            ).check() {
-            // Link
-            signer.link<
-                &{ChildAccount.ChildAccountManagerViewer}
-            >(
-                ChildAccount.ChildAccountManagerPublicPath,
-                target: ChildAccount.ChildAccountManagerStoragePath
+        /** --- Configure Collection & get ref --- */
+        //
+        // Check that Collection is saved in storage
+        if signer.type(at: LinkedAccounts.CollectionStoragePath) == nil {
+            signer.save(
+                <-LinkedAccounts.createEmptyCollection(),
+                to: LinkedAccounts.CollectionStoragePath
             )
         }
-        // Get ChildAccountManager reference from signer
-        self.managerRef = signer.borrow<
-                &ChildAccount.ChildAccountManager
+        // Link the public Capability
+        if !signer.getCapability<
+                &LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
+            >(LinkedAccounts.CollectionPublicPath).check() {
+            signer.unlink(LinkedAccounts.CollectionPublicPath)
+            signer.link<&LinkedAccounts.Collection{NonFungibleToken.Receiver, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}>(
+                LinkedAccounts.CollectionPublicPath,
+                target: LinkedAccounts.CollectionStoragePath
+            )
+        }
+        // Link the private Capability
+        if !signer.getCapability<
+                &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
+            >(LinkedAccounts.CollectionPrivatePath).check() {
+            signer.unlink(LinkedAccounts.CollectionPrivatePath)
+            signer.link<
+                &LinkedAccounts.Collection{NonFungibleToken.Provider, NonFungibleToken.CollectionPublic, LinkedAccounts.CollectionPublic, MetadataViews.ResolverCollection}
             >(
-                from: ChildAccount.ChildAccountManagerStoragePath
+                LinkedAccounts.CollectionPrivatePath,
+                target: LinkedAccounts.CollectionStoragePath
+            )
+        }
+        // Get Collection reference from signer
+        self.collectionRef = signer.borrow<&LinkedAccounts.Collection>(
+                from: LinkedAccounts.CollectionStoragePath
             )!
+        
+        /** --- Prep to link account --- */
+        //
         // Claim the previously published AuthAccount Capability from the given Address
-        self.childAccountCap = signer.inbox
-            .claim<
-                &AuthAccount
-            >(
+        self.authAccountCap = signer.inbox.claim<&AuthAccount>(
                 "AuthAccountCapability",
-                provider: childAddress
+                provider: linkedAccountAddress
             ) ?? panic(
                 "No AuthAccount Capability available from given provider"
-                .concat(childAddress.toString())
+                .concat(linkedAccountAddress.toString())
                 .concat(" with name ")
                 .concat("AuthAccountCapability")
             )
-        // Construct ChildAccountInfo struct from given arguments
-        self.info = ChildAccount.ChildAccountInfo(
-            name: childAccountName,
-            description: childAccountDescription,
-            clientIconURL: MetadataViews.HTTPFile(url: clientIconURL),
-            clienExternalURL: MetadataViews.ExternalURL(clientExternalURL),
-            originatingPublicKey: pubKey
+        
+        /** --- Construct metadata --- */
+        //
+        // Construct linked account metadata from given arguments
+        self.info = LinkedAccountMetadataViews.AccountInfo(
+            name: linkedAccountName,
+            description: linkedAccountDescription,
+            thumbnail: MetadataViews.HTTPFile(url: clientThumbnailURL),
+            externalURL: MetadataViews.ExternalURL(clientExternalURL)
         )
     }
 
     execute {
-        // Add account as child to the ChildAccountManager
-        self.managerRef.addAsChildAccount(childAccountCap: self.childAccountCap, childAccountInfo: self.info)
+        // Add account as child to the signer's LinkedAccounts.Collection
+        self.collectionRef.addAsChildAccount(
+            linkedAccountCap: self.authAccountCap,
+            linkedAccountMetadata: self.info,
+            linkedAccountMetadataResolver: nil,
+            handlerPathSuffix: handlerPathSuffix
+        )
     }
 }
+ 
